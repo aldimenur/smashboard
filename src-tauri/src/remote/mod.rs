@@ -1,12 +1,13 @@
 use std::io::{Read, Write};
 use std::net::{IpAddr, TcpListener, TcpStream, UdpSocket};
+use std::path::{Component, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use uuid::Uuid;
 
 use crate::commands::slot_commands::trigger_slot_with_shared;
@@ -192,33 +193,36 @@ fn handle_connection(
         .any(|(key, value)| key == "token" && value == token);
 
     if request.path == "/" {
+        if let Some(bytes) = read_remote_dist_file(&app_handle, "remote.html") {
+            return write_http_response(&mut stream, "200 OK", "text/html; charset=utf-8", &bytes);
+        }
         return write_http_response(
             &mut stream,
-            "200 OK",
-            "text/html; charset=utf-8",
-            remote_html().as_bytes(),
+            "503 Service Unavailable",
+            "application/json",
+            br#"{"error":"remote_build_not_found"}"#,
         );
     }
 
-    if request.method == "GET" && request.path == "/favicon.ico" {
-        return write_http_response(&mut stream, "204 No Content", "image/x-icon", &[]);
-    }
-
-    if request.method == "GET" && request.path == "/remote/styles.css" {
+    if request.method == "GET"
+        && (request.path == "/remote.html"
+            || request.path == "/favicon.ico"
+            || request.path.starts_with("/assets/"))
+    {
+        let relative_path = request.path.trim_start_matches('/');
+        if let Some(bytes) = read_remote_dist_file(&app_handle, relative_path) {
+            return write_http_response(
+                &mut stream,
+                "200 OK",
+                content_type_for_path(relative_path),
+                &bytes,
+            );
+        }
         return write_http_response(
             &mut stream,
-            "200 OK",
-            "text/css; charset=utf-8",
-            remote_css().as_bytes(),
-        );
-    }
-
-    if request.method == "GET" && request.path == "/remote/app.js" {
-        return write_http_response(
-            &mut stream,
-            "200 OK",
-            "application/javascript; charset=utf-8",
-            remote_app_js().as_bytes(),
+            "404 Not Found",
+            "application/json",
+            br#"{"error":"asset_not_found"}"#,
         );
     }
 
@@ -229,19 +233,6 @@ fn handle_connection(
             "application/json",
             br#"{"error":"unauthorized"}"#,
         );
-    }
-
-    if request.method == "GET" && request.path == "/api/state" {
-        let payload = snapshot_state(
-            &slots,
-            &timeline_state,
-            &playback_engine,
-            &recording_engine,
-            &project_settings,
-            &project_name,
-        )?;
-        let json = serde_json::to_vec(&payload).map_err(|err| format!("json encode failed: {err}"))?;
-        return write_http_response(&mut stream, "200 OK", "application/json", &json);
     }
 
     if request.method == "GET" && request.path == "/api/events" {
@@ -276,6 +267,67 @@ fn handle_connection(
         "application/json",
         br#"{"error":"not_found"}"#,
     )
+}
+
+fn read_remote_dist_file(app_handle: &AppHandle, relative_path: &str) -> Option<Vec<u8>> {
+    if relative_path.is_empty() {
+        return None;
+    }
+
+    let relative = PathBuf::from(relative_path);
+    if relative.is_absolute() {
+        return None;
+    }
+    if relative
+        .components()
+        .any(|part| matches!(part, Component::ParentDir))
+    {
+        return None;
+    }
+
+    let root = find_dist_root(app_handle)?;
+    let full_path = root.join(relative);
+    std::fs::read(full_path).ok()
+}
+
+fn find_dist_root(app_handle: &AppHandle) -> Option<PathBuf> {
+    let mut candidates = Vec::new();
+    candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist"));
+    if let Ok(current_dir) = std::env::current_dir() {
+        candidates.push(current_dir.join("dist"));
+    }
+    if let Ok(resource_dir) = app_handle.path().resource_dir() {
+        candidates.push(resource_dir.join("dist"));
+        candidates.push(resource_dir.clone());
+    }
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            candidates.push(exe_dir.join("dist"));
+            candidates.push(exe_dir.join("resources").join("dist"));
+            candidates.push(exe_dir.join("../Resources/dist"));
+            candidates.push(exe_dir.join("../dist"));
+        }
+    }
+
+    candidates.into_iter().find(|path| path.join("remote.html").exists())
+}
+
+fn content_type_for_path(path: &str) -> &'static str {
+    if path.ends_with(".html") {
+        "text/html; charset=utf-8"
+    } else if path.ends_with(".css") {
+        "text/css; charset=utf-8"
+    } else if path.ends_with(".js") {
+        "application/javascript; charset=utf-8"
+    } else if path.ends_with(".svg") {
+        "image/svg+xml"
+    } else if path.ends_with(".png") {
+        "image/png"
+    } else if path.ends_with(".ico") {
+        "image/x-icon"
+    } else {
+        "application/octet-stream"
+    }
 }
 
 fn write_state_event_stream(
@@ -530,207 +582,4 @@ fn is_lan_or_loopback(ip: IpAddr) -> bool {
         IpAddr::V4(addr) => addr.is_private() || addr.is_loopback() || addr.is_link_local(),
         IpAddr::V6(addr) => addr.is_loopback() || addr.is_unique_local() || addr.is_unicast_link_local(),
     }
-}
-
-fn remote_html() -> &'static str {
-    r#"<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SFX Board Remote</title>
-    <link rel="stylesheet" href="/remote/styles.css" />
-  </head>
-  <body>
-    <div id="app"></div>
-    <script src="/remote/app.js"></script>
-  </body>
-</html>"#
-}
-
-fn remote_css() -> &'static str {
-    r#":root{color-scheme:dark}
-*{box-sizing:border-box}
-body{margin:0;padding:10px;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080d1a;color:#f8fafc}
-.app{display:grid;gap:10px;max-width:980px;margin:0 auto}
-.top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.project{font-size:15px;font-weight:700}
-.meta{font-size:12px;color:#9aa4b5}
-.controls{display:flex;gap:8px}
-.btn{border:1px solid #334155;border-radius:10px;padding:8px 12px;background:#192334;color:#f8fafc;font-weight:700}
-.btn:active{transform:scale(.97)}
-.grid{display:grid;gap:8px}
-.slot-card{position:relative;height:102px;border:1px solid #334155;border-top:3px solid var(--slot-color);border-radius:10px;background:linear-gradient(160deg,#111827,#1a2235);color:#f8fafc;display:flex;flex-direction:column;justify-content:space-between;padding:8px;overflow:hidden}
-.slot-loaded{cursor:pointer;transition:transform 120ms ease,border-color 120ms ease}
-.slot-loaded:active{transform:scale(.98)}
-.slot-playing{animation:slotPulse 260ms ease}
-.slot-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-.slot-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:700}
-.slot-short{font-size:11px;border:1px solid #4b5563;border-radius:10px;min-width:30px;max-width:42px;aspect-ratio:1/1;color:#9ca3af;text-align:center;background:rgba(11,17,28,.9);display:inline-flex;align-items:center;justify-content:center;line-height:1}
-.slot-short-active{color:#f9fafb;border-color:color-mix(in srgb,var(--slot-color) 55%,#334155);background:color-mix(in srgb,var(--slot-color) 28%,#111827)}
-.slot-meta{margin-top:2px;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between;gap:8px}
-.slot-file{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.slot-empty{justify-content:center;align-items:center;opacity:.55;border:1px dashed #334155;background:#111827;color:#9aa4b5}
-@keyframes slotPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--slot-color) 50%,transparent)}100%{box-shadow:0 0 0 12px transparent}}
-@media (max-width:640px){body{padding:8px}.slot-card{height:96px;padding:7px}.slot-label{font-size:13px}}
-"#
-}
-
-fn remote_app_js() -> &'static str {
-    r#"(() => {
-const token = new URLSearchParams(location.search).get('token') || '';
-
-function esc(text){
-  return String(text ?? '')
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'","&#39;");
-}
-
-function fmtMs(ms){
-  const n = Math.max(0, Math.floor(ms || 0));
-  const m = String(Math.floor(n/60000)).padStart(2,'0');
-  const s = String(Math.floor((n%60000)/1000)).padStart(2,'0');
-  const mm = String(n%1000).padStart(3,'0');
-  return `${m}:${s}.${mm}`;
-}
-
-async function send(payload){
-  try{
-    await fetch('/api/command?token='+encodeURIComponent(token),{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-  }catch{}
-}
-
-const app = document.getElementById('app');
-let pressed = {};
-let currentState = null;
-let currentStatus = 'connecting...';
-let stream = null;
-let reconnectTimer = null;
-
-function render(state, status){
-  const rows = Math.max(1, state?.boardRows || 1);
-  const cols = Math.max(1, state?.boardColumns || 1);
-  const cap = rows * cols;
-  const slotsByPos = new Map((state?.slots || []).map(s => [s.position, s]));
-  let cards = '';
-  for(let i=0;i<cap;i++){
-    const slot = slotsByPos.get(i);
-    if(!slot){
-      cards += `<div class="slot-card slot-empty"><div class="slot-label">Empty</div><div class="slot-meta"><span>Slot ${i+1}</span></div></div>`;
-      continue;
-    }
-    const color = slot.color || '#3a3a3a';
-    const isPlaying = pressed[slot.id] ? 'slot-playing' : '';
-    const file = String(slot.audioPath || '').split(/[\\/]/).filter(Boolean).pop() || slot.label || 'Untitled';
-    cards += `<article class="slot-card slot-loaded ${isPlaying}" data-slot-id="${esc(slot.id)}" style="--slot-color:${esc(color)}">
-      <div class="slot-head">
-        <span class="slot-label" title="${esc(slot.label)}">${esc(slot.label || 'Untitled')}</span>
-        <span class="slot-short ${(slot.shortcut ? 'slot-short-active' : '')}">${esc(slot.shortcut || '--')}</span>
-      </div>
-      <div class="slot-meta">
-        <span class="slot-file" title="${esc(file)}">${esc(file)}</span>
-        <span>${(slot.durationMs/1000).toFixed(2)}s</span>
-      </div>
-    </article>`;
-  }
-
-  const transport = status || 'connecting...';
-  const stateStatus = state
-    ? `${state.playbackStatus} | ${state.recordingStatus} | ${fmtMs(state.playheadMs)}`
-    : 'waiting for state...';
-  app.innerHTML = `
-    <div class="app">
-      <div class="top">
-        <div>
-          <div class="project">${esc(state?.projectName || 'SFX Board Remote')}</div>
-          <div class="meta">${esc(transport)} | ${esc(stateStatus)}</div>
-        </div>
-        <div class="controls"><button class="btn" id="stopAllBtn">Stop All</button></div>
-      </div>
-      <div class="grid" style="grid-template-columns:repeat(${cols}, minmax(0,1fr))">${cards}</div>
-    </div>
-  `;
-
-  const stopAllBtn = document.getElementById('stopAllBtn');
-  if (stopAllBtn) {
-    stopAllBtn.onclick = () => { void send({kind:'stop_all_audio'}); };
-  }
-
-  app.querySelectorAll('.slot-loaded').forEach((card) => {
-    card.addEventListener('click', async () => {
-      const slotId = card.getAttribute('data-slot-id');
-      if (!slotId) return;
-      pressed = {...pressed, [slotId]: true};
-      render(state, status);
-      setTimeout(() => {
-        pressed = {...pressed, [slotId]: false};
-        render(currentState, currentStatus);
-      }, 220);
-      await send({kind:'trigger_slot', slotId});
-    });
-  });
-}
-
-function connectStream(){
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  if (stream) {
-    stream.close();
-    stream = null;
-  }
-  currentStatus = 'connecting...';
-  render(currentState, currentStatus);
-
-  const url = '/api/events?token='+encodeURIComponent(token);
-  stream = new EventSource(url);
-
-  stream.addEventListener('open', () => {
-    currentStatus = 'connected';
-    render(currentState, currentStatus);
-  });
-
-  stream.addEventListener('state', (event) => {
-    try{
-      currentState = JSON.parse(event.data);
-      currentStatus = 'connected';
-      render(currentState, currentStatus);
-    }catch{
-      currentStatus = 'decode error';
-      render(currentState, currentStatus);
-    }
-  });
-
-  stream.addEventListener('error', () => {
-    currentStatus = 'reconnecting...';
-    render(currentState, currentStatus);
-    if (stream) {
-      stream.close();
-      stream = null;
-    }
-    reconnectTimer = setTimeout(connectStream, 1200);
-  });
-}
-
-window.addEventListener('beforeunload', () => {
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  if (stream) {
-    stream.close();
-    stream = null;
-  }
-});
-
-connectStream();
-})();"#
 }

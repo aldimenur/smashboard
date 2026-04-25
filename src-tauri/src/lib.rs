@@ -22,7 +22,7 @@ use models::project::{Project, ProjectSettings};
 use recording::engine::RecordingEngine;
 use recording::shortcut_manager::ShortcutManager;
 use remote::RemoteControlManager;
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, RunEvent};
 use timeline::playback::PlaybackEngine;
 use timeline::state::TimelineState;
 use undo::UndoManager;
@@ -332,8 +332,14 @@ pub fn run() {
             commands::export_commands::export_audio_mp3,
             commands::export_commands::export_timeline_json,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let RunEvent::ExitRequested { .. } = event {
+                let state = app_handle.state::<AppState>();
+                shutdown_for_exit(&state);
+            }
+        });
 }
 
 fn snapshot_project_from_shared(
@@ -392,6 +398,25 @@ pub(crate) fn sync_shortcuts_for_slots(state: &AppState, slots: &[Slot]) -> Resu
         .map_err(|_| "failed to lock shortcut manager".to_string())?;
 
     manager.sync_slots(slots)
+}
+
+pub(crate) fn shutdown_for_exit(state: &AppState) {
+    if let Ok(mut remote_control) = state.remote_control.lock() {
+        remote_control.stop();
+    }
+
+    if let Ok(mut shortcut_manager) = state.shortcut_manager.lock() {
+        let _ = shortcut_manager.set_enabled(false);
+    }
+
+    if let Ok(mut playback) = state.playback_engine.lock() {
+        playback.stop();
+    }
+
+    state.playback_loop_running.store(false, Ordering::SeqCst);
+    state.recording_timer_running.store(false, Ordering::SeqCst);
+
+    let _ = state.audio_engine.stop_all();
 }
 
 pub(crate) fn apply_loaded_project(state: &AppState, project: &Project, file_path: &Path) -> Result<(), String> {

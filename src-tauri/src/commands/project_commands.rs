@@ -6,7 +6,7 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::autosave::AutosaveManager;
 use crate::models::project::{Project, ProjectSettings, TimelineData};
-use crate::{apply_loaded_project, AppState};
+use crate::{apply_loaded_project, shutdown_for_exit, AppState};
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -238,7 +238,8 @@ pub async fn check_autosave_recovery(
 }
 
 #[tauri::command]
-pub async fn force_quit_app(app_handle: AppHandle) -> Result<(), String> {
+pub async fn force_quit_app(state: State<'_, AppState>, app_handle: AppHandle) -> Result<(), String> {
+    shutdown_for_exit(&state);
     app_handle.exit(0);
     Ok(())
 }

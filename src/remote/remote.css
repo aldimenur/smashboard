@@ -1,0 +1,179 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 10px;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  background: #080d1a;
+  color: #f8fafc;
+}
+
+.remote-app {
+  display: grid;
+  gap: 10px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.remote-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.remote-project {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.remote-meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #9aa4b5;
+}
+
+.remote-btn {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #192334;
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+.remote-btn:active {
+  transform: scale(0.97);
+}
+
+.remote-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.remote-slot {
+  position: relative;
+  height: 102px;
+  border: 1px solid #334155;
+  border-top: 3px solid var(--slot-color, #3a3a3a);
+  border-radius: 10px;
+  background: linear-gradient(160deg, #111827, #1a2235);
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.remote-slot-loaded {
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.remote-slot-loaded:active {
+  transform: scale(0.98);
+}
+
+.remote-slot-playing {
+  animation: remote-slot-pulse 260ms ease;
+}
+
+.remote-slot-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.remote-slot-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.remote-slot-shortcut {
+  font-size: 11px;
+  border: 1px solid #4b5563;
+  border-radius: 10px;
+  min-width: 30px;
+  max-width: 42px;
+  aspect-ratio: 1 / 1;
+  color: #9ca3af;
+  text-align: center;
+  background: rgba(11, 17, 28, 0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.remote-slot-shortcut-active {
+  color: #f9fafb;
+  border-color: color-mix(in srgb, var(--slot-color, #3a3a3a) 55%, #334155);
+  background: color-mix(in srgb, var(--slot-color, #3a3a3a) 28%, #111827);
+}
+
+.remote-slot-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #9ca3af;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.remote-slot-file {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.remote-slot-empty {
+  justify-content: center;
+  align-items: center;
+  opacity: 0.55;
+  border: 1px dashed #334155;
+  background: #111827;
+  color: #9aa4b5;
+}
+
+@keyframes remote-slot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--slot-color, #3a3a3a) 50%, transparent);
+  }
+
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 8px;
+  }
+
+  .remote-slot {
+    height: 96px;
+    padding: 7px;
+  }
+
+  .remote-slot-label {
+    font-size: 13px;
+  }
+}

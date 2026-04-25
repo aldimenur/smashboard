@@ -434,33 +434,33 @@ export function ProjectMenu({
           return;
         }
 
-        if (!projectStateRef.current.hasUnsavedChanges) {
-          return;
-        }
-
         event.preventDefault();
 
-        let shouldDiscard = false;
-        try {
-          shouldDiscard = await confirm("You have unsaved changes. Close anyway?", {
-            title: "Unsaved Changes",
-            kind: "warning",
-            okLabel: "Close",
-            cancelLabel: "Cancel",
-          });
-        } catch {
-          return;
-        }
+        if (projectStateRef.current.hasUnsavedChanges) {
+          let shouldDiscard = false;
+          try {
+            shouldDiscard = await confirm("You have unsaved changes. Close anyway?", {
+              title: "Unsaved Changes",
+              kind: "warning",
+              okLabel: "Close",
+              cancelLabel: "Cancel",
+            });
+          } catch {
+            return;
+          }
 
-        if (!shouldDiscard) {
-          return;
+          if (!shouldDiscard) {
+            return;
+          }
         }
 
         allowImmediateCloseRef.current = true;
         try {
-          await getCurrentWindow().close();
-        } catch {
+          await invoke("force_quit_app");
+        } catch (err) {
           allowImmediateCloseRef.current = false;
+          setError(`Failed to close app: ${String(err)}`);
+          showToast(`Failed to close app: ${String(err)}`, "error");
         }
       })
       .then((fn) => {
