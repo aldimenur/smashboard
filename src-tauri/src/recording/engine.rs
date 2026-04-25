@@ -10,6 +10,7 @@ use crate::models::timeline::TimelineEvent;
 pub struct RecordingEngine {
     session: Option<RecordingSession>,
     start_time: Option<Instant>,
+    start_offset_ms: f64,
     paused_duration: Duration,
     pause_started_at: Option<Instant>,
 }
@@ -19,12 +20,13 @@ impl RecordingEngine {
         Self {
             session: None,
             start_time: None,
+            start_offset_ms: 0.0,
             paused_duration: Duration::ZERO,
             pause_started_at: None,
         }
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
+    pub fn start(&mut self, start_offset_ms: f64) -> Result<(), String> {
         if matches!(
             self.status(),
             RecordingStatus::Recording | RecordingStatus::Paused
@@ -36,10 +38,11 @@ impl RecordingEngine {
             session_id: Uuid::new_v4().to_string(),
             started_at: Utc::now(),
             status: RecordingStatus::Recording,
-            current_time_ms: 0.0,
+            current_time_ms: start_offset_ms.max(0.0),
             events_buffer: Vec::new(),
         });
         self.start_time = Some(Instant::now());
+        self.start_offset_ms = start_offset_ms.max(0.0);
         self.paused_duration = Duration::ZERO;
         self.pause_started_at = None;
 
@@ -95,6 +98,7 @@ impl RecordingEngine {
 
         let events = session.events_buffer.clone();
         self.start_time = None;
+        self.start_offset_ms = 0.0;
         self.paused_duration = Duration::ZERO;
         self.pause_started_at = None;
 
@@ -132,7 +136,7 @@ impl RecordingEngine {
             RecordingStatus::Recording => {
                 let start = self.start_time.unwrap_or_else(Instant::now);
                 let elapsed = start.elapsed().saturating_sub(self.paused_duration);
-                elapsed.as_secs_f64() * 1000.0
+                self.start_offset_ms + (elapsed.as_secs_f64() * 1000.0)
             }
             RecordingStatus::Paused => {
                 let start = self.start_time.unwrap_or_else(Instant::now);
@@ -140,7 +144,7 @@ impl RecordingEngine {
                 let elapsed_until_pause = pause_started
                     .saturating_duration_since(start)
                     .saturating_sub(self.paused_duration);
-                elapsed_until_pause.as_secs_f64() * 1000.0
+                self.start_offset_ms + (elapsed_until_pause.as_secs_f64() * 1000.0)
             }
             _ => self
                 .session

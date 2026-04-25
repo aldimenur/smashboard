@@ -230,3 +230,9 @@ pub async fn check_autosave_recovery(
         modified_at: autosave_modified.map(|value| value.to_rfc3339()),
     })
 }
+
+#[tauri::command]
+pub async fn force_quit_app(app_handle: AppHandle) -> Result<(), String> {
+    app_handle.exit(0);
+    Ok(())
+}

@@ -313,6 +313,7 @@ pub fn run() {
             commands::project_commands::get_autosave_path,
             commands::project_commands::get_project_state,
             commands::project_commands::check_autosave_recovery,
+            commands::project_commands::force_quit_app,
             commands::undo_commands::undo,
             commands::undo_commands::redo,
             commands::undo_commands::get_undo_redo_state,

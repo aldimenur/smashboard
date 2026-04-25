@@ -6,11 +6,18 @@ interface CanvasEvent extends TimelineEvent {
   track: number;
 }
 
-interface DragState {
+interface EventDragState {
+  kind: "events";
   startX: number;
   eventIds: string[];
   initialTimes: Record<string, number>;
 }
+
+interface PlayheadDragState {
+  kind: "playhead";
+}
+
+type DragState = EventDragState | PlayheadDragState;
 
 type OverlapMap = Map<string, number>;
 
@@ -20,6 +27,8 @@ interface TimelineCanvasProps {
   zoom: number;
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
+  onPlayheadPreview: (timeMs: number) => void;
+  onPlayheadCommit: (timeMs: number) => Promise<void>;
   onEventsPreview: (nextEvents: TimelineEvent[]) => void;
   onEventsCommit: (eventTimes: Array<{ eventId: string; newTimeMs: number }>) => Promise<void>;
 }
@@ -89,6 +98,8 @@ export function TimelineCanvas({
   zoom,
   selectedIds,
   setSelectedIds,
+  onPlayheadPreview,
+  onPlayheadCommit,
   onEventsPreview,
   onEventsCommit,
 }: TimelineCanvasProps) {
@@ -113,6 +124,7 @@ export function TimelineCanvas({
     ),
   );
   const height = Math.max(220, trackCount * (trackHeight + trackSpacing) + 20);
+  const clampTimeFromX = (x: number) => Math.max(0, Math.min((x * zoom), width * zoom));
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = event.currentTarget;
@@ -131,7 +143,11 @@ export function TimelineCanvas({
 
     if (!clicked) {
       setSelectedIds([]);
-      setDragState(null);
+      const nextPlayhead = clampTimeFromX(x);
+      onPlayheadPreview(nextPlayhead);
+      setDragState({
+        kind: "playhead",
+      });
       return;
     }
 
@@ -155,6 +171,7 @@ export function TimelineCanvas({
     );
 
     setDragState({
+      kind: "events",
       startX: x,
       eventIds: nextSelectedIds,
       initialTimes,
@@ -169,6 +186,12 @@ export function TimelineCanvas({
     const canvas = event.currentTarget;
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
+
+    if (dragState.kind === "playhead") {
+      onPlayheadPreview(clampTimeFromX(x));
+      return;
+    }
+
     const deltaMs = (x - dragState.startX) * zoom;
 
     const nextEvents = events.map((item) => {
@@ -186,8 +209,19 @@ export function TimelineCanvas({
     onEventsPreview(nextEvents);
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!dragState) {
+      return;
+    }
+
+    if (dragState.kind === "playhead") {
+      const canvas = event.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const nextPlayhead = clampTimeFromX(x);
+      onPlayheadPreview(nextPlayhead);
+      void onPlayheadCommit(nextPlayhead);
+      setDragState(null);
       return;
     }
 

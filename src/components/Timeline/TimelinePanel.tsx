@@ -108,6 +108,16 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
     [loadEvents],
   );
 
+  const commitPlayhead = useCallback(async (nextTimeMs: number) => {
+    try {
+      await invoke("seek_timeline", { timeMs: nextTimeMs });
+      setPlayheadMs(nextTimeMs);
+      setError(null);
+    } catch (err) {
+      setError(String(err));
+    }
+  }, []);
+
   const deleteSelected = useCallback(async () => {
     if (selectedIds.length === 0) {
       return;
@@ -231,6 +241,8 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
         zoom={zoom}
         selectedIds={selectedIds}
         setSelectedIds={setSelectedIds}
+        onPlayheadPreview={setPlayheadMs}
+        onPlayheadCommit={commitPlayhead}
         onEventsPreview={setEvents}
         onEventsCommit={applyEventsCommit}
       />

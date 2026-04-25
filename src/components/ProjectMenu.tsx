@@ -197,6 +197,19 @@ export function ProjectMenu({
     [busy, projectState.currentPath, projectState.projectName, refreshProjectState, showToast],
   );
 
+  const requestCloseApp = useCallback(async () => {
+    try {
+      await getCurrentWindow().close();
+    } catch {
+      try {
+        await invoke("force_quit_app");
+      } catch (err) {
+        setError(`Failed to close app: ${String(err)}`);
+        showToast(`Failed to close app: ${String(err)}`, "error");
+      }
+    }
+  }, [showToast]);
+
   const openProject = useCallback(async () => {
     if (busy) {
       return;
@@ -354,6 +367,9 @@ export function ProjectMenu({
         </button>
         <button type="button" onClick={onOpenShortcuts} disabled={busy}>
           Shortcuts
+        </button>
+        <button type="button" onClick={() => void requestCloseApp()}>
+          Quit
         </button>
       </div>
 

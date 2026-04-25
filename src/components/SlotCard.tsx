@@ -5,13 +5,14 @@ import type { Slot } from "../types";
 interface SlotCardProps {
   index: number;
   slot?: Slot;
+  pulseTick?: number;
   onTrigger: (slotId: string) => Promise<void>;
   onEdit: (slot: Slot) => Promise<void>;
   onDelete: (slotId: string) => Promise<void>;
   onGainChange: (slotId: string, gain: number) => Promise<void>;
 }
 
-export function SlotCard({ index, slot, onTrigger, onEdit, onDelete, onGainChange }: SlotCardProps) {
+export function SlotCard({ index, slot, pulseTick = 0, onTrigger, onEdit, onDelete, onGainChange }: SlotCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -24,6 +25,16 @@ export function SlotCard({ index, slot, onTrigger, onEdit, onDelete, onGainChang
     window.addEventListener("click", closeMenu);
     return () => window.removeEventListener("click", closeMenu);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!slot || pulseTick <= 0) {
+      return;
+    }
+
+    setIsPlaying(true);
+    const timeout = window.setTimeout(() => setIsPlaying(false), 240);
+    return () => window.clearTimeout(timeout);
+  }, [pulseTick, slot]);
 
   const durationText = useMemo(() => {
     if (!slot) {
@@ -40,8 +51,6 @@ export function SlotCard({ index, slot, onTrigger, onEdit, onDelete, onGainChang
 
     try {
       await onTrigger(slot.id);
-      setIsPlaying(true);
-      window.setTimeout(() => setIsPlaying(false), 220);
     } catch {
       setIsPlaying(false);
     }

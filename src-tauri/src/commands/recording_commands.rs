@@ -35,11 +35,19 @@ pub async fn start_recording(
     let _ = app_handle.emit("playback-status-updated", PlaybackStatus::Stopped);
 
     {
+        let start_offset_ms = {
+            let timeline = state
+                .timeline_state
+                .lock()
+                .map_err(|_| "failed to lock timeline state".to_string())?;
+            timeline.playhead_position_ms.max(0.0)
+        };
+
         let mut engine = state
             .recording_engine
             .lock()
             .map_err(|_| "failed to lock recording engine".to_string())?;
-        engine.start()?;
+        engine.start(start_offset_ms)?;
     }
 
     state

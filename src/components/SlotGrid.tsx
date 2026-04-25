@@ -17,9 +17,11 @@ export function SlotGrid() {
   const { slots, error, loadSlots, addSlot, triggerSlot, updateSlot, deleteSlot } = useSlots();
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
+  const [pulseTicks, setPulseTicks] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let unlistenProjectLoaded: UnlistenFn | undefined;
+    let unlistenSlotTriggered: UnlistenFn | undefined;
 
     void loadSlots();
 
@@ -29,8 +31,19 @@ export function SlotGrid() {
       unlistenProjectLoaded = fn;
     });
 
+    void listen<string>("slot-triggered", (event) => {
+      const slotId = event.payload;
+      setPulseTicks((prev) => ({
+        ...prev,
+        [slotId]: (prev[slotId] ?? 0) + 1,
+      }));
+    }).then((fn) => {
+      unlistenSlotTriggered = fn;
+    });
+
     return () => {
       unlistenProjectLoaded?.();
+      unlistenSlotTriggered?.();
     };
   }, [loadSlots]);
 
@@ -173,6 +186,7 @@ export function SlotGrid() {
                 key={slot?.id ?? `empty-${index}`}
                 index={index}
                 slot={slot}
+                pulseTick={slot ? pulseTicks[slot.id] ?? 0 : 0}
                 onTrigger={triggerSlot}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
