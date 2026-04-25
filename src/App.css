@@ -1,0 +1,225 @@
+:root {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --bg-tertiary: #3a3a3a;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --accent-primary: #3b82f6;
+  --border-color: #404040;
+  --danger: #ef4444;
+  --surface-highlight: #0f1117;
+
+  font-family: "Segoe UI", "Noto Sans", sans-serif;
+  color: var(--text-primary);
+  background: radial-gradient(circle at top right, #252525, #131313 70%);
+  line-height: 1.4;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: transparent;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 16px;
+  color: var(--text-primary);
+}
+
+.slot-grid-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slot-grid-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  background: rgba(26, 26, 26, 0.9);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.slot-grid-toolbar h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.slot-grid-toolbar p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+button {
+  border: 1px solid var(--border-color);
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slot-error {
+  margin: 0;
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 60%, black);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #fecaca;
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.slot-card {
+  position: relative;
+  min-height: 98px;
+  border: 1px solid var(--border-color);
+  border-top: 3px solid var(--slot-color);
+  border-radius: 10px;
+  background: linear-gradient(160deg, var(--bg-secondary), var(--surface-highlight));
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.slot-loaded {
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.slot-loaded:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--slot-color) 60%, var(--border-color));
+}
+
+.slot-playing {
+  animation: slot-pulse 260ms ease;
+}
+
+@keyframes slot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--slot-color) 50%, transparent);
+  }
+
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
+.slot-empty {
+  justify-content: center;
+  align-items: center;
+  color: var(--text-secondary);
+  gap: 6px;
+}
+
+.slot-empty-label {
+  font-size: 0.8rem;
+}
+
+.slot-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slot-index {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.slot-shortcut {
+  font-size: 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 1px 6px;
+  color: var(--text-secondary);
+}
+
+.slot-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+}
+
+.slot-meta {
+  margin-top: 5px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+}
+
+.slot-gain {
+  display: grid;
+  gap: 3px;
+  margin-top: 6px;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.slot-gain input {
+  width: 100%;
+}
+
+.slot-context-menu {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  background: #121212;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px;
+}
+
+.slot-context-menu button {
+  background: var(--bg-tertiary);
+  border-color: #5a5a5a;
+  padding: 5px 8px;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    padding: 10px;
+  }
+
+  .slot-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
