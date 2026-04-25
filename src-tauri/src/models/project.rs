@@ -20,10 +20,13 @@ pub struct Project {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
+#[serde(default)]
 pub struct ProjectSettings {
     pub global_shortcuts_enabled: bool,
     pub audio_buffer_size: u32,
     pub frame_rate: u32,
+    pub board_rows: u8,
+    pub board_columns: u8,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -39,6 +42,8 @@ impl Default for ProjectSettings {
             global_shortcuts_enabled: false,
             audio_buffer_size: 512,
             frame_rate: 30,
+            board_rows: 5,
+            board_columns: 5,
         }
     }
 }

@@ -12,6 +12,8 @@ use crate::audio::decoder::decode_audio;
 #[serde(rename_all = "camelCase")]
 pub struct Slot {
     pub id: String,
+    #[serde(default)]
+    pub position: usize,
     pub label: String,
     pub audio_path: String,
     pub shortcut: String,
@@ -23,7 +25,7 @@ pub struct Slot {
 }
 
 impl Slot {
-    pub fn new(audio_path: String, label: Option<String>) -> Result<Self, String> {
+    pub fn new(audio_path: String, label: Option<String>, position: usize) -> Result<Self, String> {
         let path_buf = PathBuf::from(&audio_path);
         let path = path_buf.as_path();
         if !path.exists() {
@@ -38,6 +40,7 @@ impl Slot {
 
         Ok(Self {
             id: Uuid::new_v4().to_string(),
+            position,
             label: label.unwrap_or_else(|| fallback_label.to_string()),
             audio_path,
             shortcut: String::new(),

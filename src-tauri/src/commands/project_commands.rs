@@ -16,6 +16,8 @@ pub struct ProjectStatePayload {
     pub has_unsaved_changes: bool,
     pub global_shortcuts_enabled: bool,
     pub frame_rate: u32,
+    pub board_rows: u8,
+    pub board_columns: u8,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -189,6 +191,8 @@ pub async fn get_project_state(state: State<'_, AppState>) -> Result<ProjectStat
             .load(std::sync::atomic::Ordering::SeqCst),
         global_shortcuts_enabled: settings.global_shortcuts_enabled,
         frame_rate: settings.frame_rate,
+        board_rows: settings.board_rows,
+        board_columns: settings.board_columns,
     })
 }
 
@@ -234,5 +238,39 @@ pub async fn check_autosave_recovery(
 #[tauri::command]
 pub async fn force_quit_app(app_handle: AppHandle) -> Result<(), String> {
     app_handle.exit(0);
+    Ok(())
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn update_board_layout(
+    state: State<'_, AppState>,
+    rows: u8,
+    columns: u8,
+) -> Result<(), String> {
+    if !(1..=5).contains(&rows) || !(1..=5).contains(&columns) {
+        return Err("board layout must be between 1 and 5".to_string());
+    }
+
+    let capacity = (rows as usize) * (columns as usize);
+    {
+        let slots = state
+            .slots
+            .lock()
+            .map_err(|_| "failed to lock slots".to_string())?;
+        if slots.iter().any(|slot| slot.position >= capacity) {
+            return Err("cannot shrink board: some slots are outside the selected size".to_string());
+        }
+    }
+
+    {
+        let mut settings = state
+            .project_settings
+            .lock()
+            .map_err(|_| "failed to lock project settings".to_string())?;
+        settings.board_rows = rows;
+        settings.board_columns = columns;
+    }
+
+    state.mark_dirty()?;
     Ok(())
 }

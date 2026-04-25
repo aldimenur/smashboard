@@ -1,5 +1,6 @@
 export interface Slot {
   id: string;
+  position: number;
   label: string;
   audioPath: string;
   shortcut: string;
@@ -32,6 +33,8 @@ export interface ProjectSettings {
   globalShortcutsEnabled: boolean;
   audioBufferSize: number;
   frameRate: number;
+  boardRows: number;
+  boardColumns: number;
 }
 
 export interface TimelineData {
@@ -55,6 +58,8 @@ export interface ProjectStatePayload {
   hasUnsavedChanges: boolean;
   globalShortcutsEnabled: boolean;
   frameRate: number;
+  boardRows: number;
+  boardColumns: number;
 }
 
 export interface AutosaveRecoveryInfo {

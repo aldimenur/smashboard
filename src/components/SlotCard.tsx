@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMusic, faPenToSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 import type { Slot } from "../types";
 
@@ -6,13 +8,23 @@ interface SlotCardProps {
   index: number;
   slot?: Slot;
   pulseTick?: number;
+  onImport: (position: number) => Promise<void>;
   onTrigger: (slotId: string) => Promise<void>;
   onEdit: (slot: Slot) => Promise<void>;
   onDelete: (slotId: string) => Promise<void>;
   onGainChange: (slotId: string, gain: number) => Promise<void>;
 }
 
-export function SlotCard({ index, slot, pulseTick = 0, onTrigger, onEdit, onDelete, onGainChange }: SlotCardProps) {
+export function SlotCard({
+  index,
+  slot,
+  pulseTick = 0,
+  onImport,
+  onTrigger,
+  onEdit,
+  onDelete,
+  onGainChange,
+}: SlotCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -62,9 +74,24 @@ export function SlotCard({ index, slot, pulseTick = 0, onTrigger, onEdit, onDele
 
   if (!slot) {
     return (
-      <article className="slot-card slot-empty" style={style}>
+      <article
+        className="slot-card slot-empty slot-empty-import"
+        style={style}
+        role="button"
+        tabIndex={0}
+        onClick={() => void onImport(index)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            void onImport(index);
+          }
+        }}
+      >
         <span className="slot-index">{index + 1}</span>
-        <span className="slot-empty-label">Empty</span>
+        <span className="slot-empty-label">
+          <FontAwesomeIcon icon={faMusic} />
+          Import
+        </span>
       </article>
     );
   }
@@ -132,6 +159,7 @@ export function SlotCard({ index, slot, pulseTick = 0, onTrigger, onEdit, onDele
               void onEdit(slot);
             }}
           >
+            <FontAwesomeIcon icon={faPenToSquare} />
             Edit
           </button>
           <button
@@ -141,6 +169,7 @@ export function SlotCard({ index, slot, pulseTick = 0, onTrigger, onEdit, onDele
               void onDelete(slot.id);
             }}
           >
+            <FontAwesomeIcon icon={faTrash} />
             Delete
           </button>
         </div>

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCirclePause, faCirclePlay, faCircleStop, faCircle as faRecord } from "@fortawesome/free-solid-svg-icons";
 
 import type { RecordingStatus, RecordingTimeUpdate, TimelineEvent } from "../types";
 
@@ -119,15 +121,19 @@ export function RecordingTransport() {
     <section className="recording-transport">
       <div className="recording-buttons">
         <button type="button" onClick={() => void handleRecord()} disabled={!controls.canRecord}>
+          <FontAwesomeIcon icon={faRecord} />
           Record
         </button>
         <button type="button" onClick={() => void handlePause()} disabled={!controls.canPause}>
+          <FontAwesomeIcon icon={faCirclePause} />
           Pause
         </button>
         <button type="button" onClick={() => void handleResume()} disabled={!controls.canResume}>
+          <FontAwesomeIcon icon={faCirclePlay} />
           Resume
         </button>
         <button type="button" onClick={() => void handleStop()} disabled={!controls.canStop}>
+          <FontAwesomeIcon icon={faCircleStop} />
           Stop
         </button>
       </div>

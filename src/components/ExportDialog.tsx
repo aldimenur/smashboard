@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { confirm, open } from "@tauri-apps/plugin-dialog";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBan, faFileExport, faFolderOpen } from "@fortawesome/free-solid-svg-icons";
 
 import type { ToastType } from "./Toast";
 
@@ -195,6 +197,7 @@ export function ExportDialog({ openState, projectName, onClose, onToast }: Expor
           <div className="row">
             <input value={outputFolder} readOnly placeholder="Select output folder..." />
             <button type="button" onClick={() => void browseFolder()} disabled={exporting}>
+              <FontAwesomeIcon icon={faFolderOpen} />
               Browse
             </button>
           </div>
@@ -216,9 +219,11 @@ export function ExportDialog({ openState, projectName, onClose, onToast }: Expor
 
         <div className="dialog-actions">
           <button type="button" onClick={onClose} disabled={exporting}>
+            <FontAwesomeIcon icon={faBan} />
             Cancel
           </button>
           <button type="button" onClick={() => void handleExport()} disabled={exporting}>
+            <FontAwesomeIcon icon={faFileExport} />
             Export
           </button>
         </div>

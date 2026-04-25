@@ -23,10 +23,10 @@ export function useSlots() {
     }
   }, []);
 
-  const addSlot = useCallback(async (filePath: string) => {
+  const addSlotAtPosition = useCallback(async (filePath: string, position: number) => {
     try {
-      const slot = await invoke<Slot>("add_slot", { filePath });
-      setSlots((prev) => [...prev, slot]);
+      const slot = await invoke<Slot>("add_slot_at_position", { filePath, position });
+      setSlots((prev) => [...prev, slot].sort((left, right) => left.position - right.position));
       setError(null);
       return slot;
     } catch (err) {
@@ -78,7 +78,7 @@ export function useSlots() {
     slots,
     error,
     loadSlots,
-    addSlot,
+    addSlotAtPosition,
     triggerSlot,
     updateSlot,
     deleteSlot,

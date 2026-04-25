@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEraser } from "@fortawesome/free-solid-svg-icons";
 
 import { normalizeShortcutString, shortcutFromKeyboardEvent } from "../utils/shortcut";
 
@@ -55,6 +57,7 @@ export function ShortcutInput({ slotId, currentShortcut, onAssign }: ShortcutInp
           void onAssign(slotId, "");
         }}
       >
+        <FontAwesomeIcon icon={faEraser} />
         Clear
       </button>
     </div>

@@ -4,7 +4,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { confirm, message } from "@tauri-apps/plugin-dialog";
 
 import { ExportDialog } from "./components/ExportDialog";
-import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { ProjectMenu } from "./components/ProjectMenu";
 import { SlotGrid } from "./components/SlotGrid";
 import { TimelinePanel } from "./components/Timeline/TimelinePanel";
@@ -13,7 +12,6 @@ import type { AutosaveRecoveryInfo } from "./types";
 
 function App() {
   const [exportOpen, setExportOpen] = useState(false);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [projectName, setProjectName] = useState("Untitled");
   const { toasts, showToast } = useToast();
 
@@ -69,7 +67,6 @@ function App() {
     <main className="app-shell">
       <ProjectMenu
         onOpenExport={() => setExportOpen(true)}
-        onOpenShortcuts={() => setShortcutsOpen(true)}
         onProjectNameChange={setProjectName}
         onToast={showToast}
       />
@@ -81,7 +78,6 @@ function App() {
         onClose={() => setExportOpen(false)}
         onToast={showToast}
       />
-      <KeyboardShortcuts openState={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <ToastContainer toasts={toasts} />
     </main>
   );

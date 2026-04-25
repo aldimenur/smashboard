@@ -1,3 +1,6 @@
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faClock, faListUl, faMousePointer } from "@fortawesome/free-solid-svg-icons";
+
 interface StatusBarProps {
   eventCount: number;
   durationMs: number;
@@ -18,18 +21,22 @@ function formatTime(ms: number): string {
 }
 
 export function StatusBar({ eventCount, durationMs, selectedCount, zoomMsPerPx }: StatusBarProps) {
+  void zoomMsPerPx;
   return (
     <footer className="status-bar">
-      <span>{eventCount} events</span>
-      <span>|</span>
-      <span>{formatTime(durationMs)}</span>
-      <span>|</span>
-      <span>{Math.round(zoomMsPerPx)} ms/px</span>
+      <span className="status-pill">
+        <FontAwesomeIcon icon={faListUl} />
+        {eventCount}
+      </span>
+      <span className="status-pill">
+        <FontAwesomeIcon icon={faClock} />
+        {formatTime(durationMs)}
+      </span>
       {selectedCount > 0 ? (
-        <>
-          <span>|</span>
-          <span>{selectedCount} selected</span>
-        </>
+        <span className="status-pill">
+          <FontAwesomeIcon icon={faMousePointer} />
+          {selectedCount}
+        </span>
       ) : null}
     </footer>
   );

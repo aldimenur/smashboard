@@ -283,6 +283,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::slot_commands::add_slot,
+            commands::slot_commands::add_slot_at_position,
             commands::slot_commands::update_slot,
             commands::slot_commands::delete_slot,
             commands::slot_commands::get_all_slots,
@@ -314,6 +315,7 @@ pub fn run() {
             commands::project_commands::get_project_state,
             commands::project_commands::check_autosave_recovery,
             commands::project_commands::force_quit_app,
+            commands::project_commands::update_board_layout,
             commands::undo_commands::undo,
             commands::undo_commands::redo,
             commands::undo_commands::get_undo_redo_state,
@@ -384,15 +386,17 @@ pub(crate) fn sync_shortcuts_for_slots(state: &AppState, slots: &[Slot]) -> Resu
 }
 
 pub(crate) fn apply_loaded_project(state: &AppState, project: &Project, file_path: &Path) -> Result<(), String> {
+    let normalized_slots = normalize_slot_positions(&project.slots, state.max_slots);
+
     {
         let mut slots = state
             .slots
             .lock()
             .map_err(|_| "failed to lock slots".to_string())?;
-        *slots = project.slots.clone();
+        *slots = normalized_slots.clone();
     }
 
-    sync_shortcuts_for_slots(state, &project.slots)?;
+    sync_shortcuts_for_slots(state, &normalized_slots)?;
 
     {
         let mut shortcut_manager = state
@@ -487,4 +491,38 @@ pub(crate) fn apply_loaded_project(state: &AppState, project: &Project, file_pat
     state.has_unsaved_changes.store(false, Ordering::SeqCst);
 
     Ok(())
+}
+
+fn normalize_slot_positions(slots: &[Slot], max_slots: usize) -> Vec<Slot> {
+    let mut assigned = std::collections::HashSet::new();
+    let mut normalized = Vec::new();
+    let mut next_fallback_position = 0usize;
+
+    for slot in slots.iter().cloned() {
+        if normalized.len() >= max_slots {
+            break;
+        }
+
+        let mut next_slot = slot;
+        let preferred = next_slot.position;
+
+        let position = if preferred < max_slots && !assigned.contains(&preferred) {
+            preferred
+        } else {
+            while next_fallback_position < max_slots && assigned.contains(&next_fallback_position) {
+                next_fallback_position += 1;
+            }
+            if next_fallback_position >= max_slots {
+                break;
+            }
+            next_fallback_position
+        };
+
+        next_slot.position = position;
+        assigned.insert(position);
+        normalized.push(next_slot);
+    }
+
+    normalized.sort_by_key(|slot| slot.position);
+    normalized
 }

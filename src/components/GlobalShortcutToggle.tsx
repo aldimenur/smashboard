@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faKeyboard } from "@fortawesome/free-solid-svg-icons";
 
 export function GlobalShortcutToggle() {
   const [enabled, setEnabled] = useState(false);
@@ -31,6 +33,7 @@ export function GlobalShortcutToggle() {
   return (
     <section className="global-shortcut-status">
       <button type="button" onClick={() => void toggle()}>
+        <FontAwesomeIcon icon={faKeyboard} />
         {enabled ? "● Active" : "○ Inactive"}
       </button>
       <span>Global Shortcuts</span>

@@ -1,3 +1,6 @@
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFolderOpen, faForward } from "@fortawesome/free-solid-svg-icons";
+
 interface MissingFilesDialogProps {
   files: string[];
   openState: boolean;
@@ -33,9 +36,11 @@ export function MissingFilesDialog({
 
         <div className="dialog-actions">
           <button type="button" onClick={() => void onLocate()} disabled={locating}>
+            <FontAwesomeIcon icon={faFolderOpen} />
             {locating ? "Locating..." : "Locate Files"}
           </button>
           <button type="button" onClick={onContinue} disabled={locating}>
+            <FontAwesomeIcon icon={faForward} />
             Continue Anyway
           </button>
         </div>

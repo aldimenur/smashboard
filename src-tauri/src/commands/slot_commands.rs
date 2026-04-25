@@ -9,6 +9,20 @@ use crate::models::slot::Slot;
 use crate::recording::engine::RecordingEngine;
 use crate::{sync_shortcuts_for_slots, AppState};
 
+fn first_available_position(slots: &[Slot], max_slots: usize) -> Option<usize> {
+    (0..max_slots).find(|position| slots.iter().all(|slot| slot.position != *position))
+}
+
+fn validate_position(position: usize, max_slots: usize) -> Result<(), String> {
+    if position >= max_slots {
+        return Err(format!(
+            "slot position must be between 0 and {}",
+            max_slots.saturating_sub(1)
+        ));
+    }
+    Ok(())
+}
+
 #[tauri::command(rename_all = "camelCase")]
 pub async fn add_slot(
     state: State<'_, AppState>,
@@ -20,13 +34,43 @@ pub async fn add_slot(
         .lock()
         .map_err(|_| "failed to lock slot state".to_string())?;
 
-    if slots.len() >= state.max_slots {
-        return Err(format!("maximum slot count ({}) reached", state.max_slots));
-    }
-
-    let slot = Slot::new(file_path, label)?;
+    let position = first_available_position(&slots, state.max_slots)
+        .ok_or_else(|| format!("maximum slot count ({}) reached", state.max_slots))?;
+    let slot = Slot::new(file_path, label, position)?;
     let mut next_slots = slots.clone();
     next_slots.push(slot.clone());
+    next_slots.sort_by_key(|item| item.position);
+
+    sync_shortcuts_for_slots(&state, &next_slots)?;
+
+    *slots = next_slots;
+    state.mark_dirty()?;
+
+    Ok(slot)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn add_slot_at_position(
+    state: State<'_, AppState>,
+    file_path: String,
+    position: usize,
+    label: Option<String>,
+) -> Result<Slot, String> {
+    validate_position(position, state.max_slots)?;
+
+    let mut slots = state
+        .slots
+        .lock()
+        .map_err(|_| "failed to lock slot state".to_string())?;
+
+    if slots.iter().any(|slot| slot.position == position) {
+        return Err("slot position already occupied".to_string());
+    }
+
+    let slot = Slot::new(file_path, label, position)?;
+    let mut next_slots = slots.clone();
+    next_slots.push(slot.clone());
+    next_slots.sort_by_key(|item| item.position);
 
     sync_shortcuts_for_slots(&state, &next_slots)?;
 
@@ -89,6 +133,7 @@ pub async fn delete_slot(state: State<'_, AppState>, slot_id: String) -> Result<
     let mut next_slots = slots.clone();
     let original_len = next_slots.len();
     next_slots.retain(|slot| slot.id != slot_id);
+    next_slots.sort_by_key(|item| item.position);
 
     if next_slots.len() == original_len {
         return Err("slot not found".to_string());
@@ -109,7 +154,9 @@ pub async fn get_all_slots(state: State<'_, AppState>) -> Result<Vec<Slot>, Stri
         .lock()
         .map_err(|_| "failed to lock slot state".to_string())?;
 
-    Ok(slots.clone())
+    let mut sorted = slots.clone();
+    sorted.sort_by_key(|item| item.position);
+    Ok(sorted)
 }
 
 #[tauri::command(rename_all = "camelCase")]

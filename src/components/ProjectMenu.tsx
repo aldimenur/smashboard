@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faDownload, faFileArrowDown, faFileExport, faFileImport, faPowerOff } from "@fortawesome/free-solid-svg-icons";
 
 import { MissingFilesDialog } from "./MissingFilesDialog";
 import type { ToastType } from "./Toast";
@@ -10,7 +12,6 @@ import type { ProjectStatePayload } from "../types";
 
 interface ProjectMenuProps {
   onOpenExport: () => void;
-  onOpenShortcuts: () => void;
   onProjectNameChange: (projectName: string) => void;
   onToast?: (message: string, type?: ToastType) => void;
 }
@@ -21,6 +22,8 @@ const EMPTY_PROJECT_STATE: ProjectStatePayload = {
   hasUnsavedChanges: false,
   globalShortcutsEnabled: false,
   frameRate: 30,
+  boardRows: 5,
+  boardColumns: 5,
 };
 
 function ensureProjectExtension(path: string): string {
@@ -53,7 +56,6 @@ function parsePathSelection(value: string | string[] | null): string | null {
 
 export function ProjectMenu({
   onOpenExport,
-  onOpenShortcuts,
   onProjectNameChange,
   onToast,
 }: ProjectMenuProps) {
@@ -354,21 +356,23 @@ export function ProjectMenu({
     <section className="project-menu">
       <div className="project-menu-buttons">
         <button type="button" onClick={() => void saveProject(false)} disabled={busy}>
+          <FontAwesomeIcon icon={faFileArrowDown} />
           {saveLabel}
         </button>
         <button type="button" onClick={() => void saveProject(true)} disabled={busy}>
+          <FontAwesomeIcon icon={faDownload} />
           Save As
         </button>
         <button type="button" onClick={() => void openProject()} disabled={busy}>
+          <FontAwesomeIcon icon={faFileImport} />
           Open
         </button>
         <button type="button" onClick={onOpenExport} disabled={busy}>
+          <FontAwesomeIcon icon={faFileExport} />
           Export
         </button>
-        <button type="button" onClick={onOpenShortcuts} disabled={busy}>
-          Shortcuts
-        </button>
-        <button type="button" onClick={() => void requestCloseApp()}>
+        <button type="button" onClick={() => void requestCloseApp()} className="button-danger-soft">
+          <FontAwesomeIcon icon={faPowerOff} />
           Quit
         </button>
       </div>
