@@ -1,10 +1,13 @@
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::audio::decoder::decode_audio;
+use crate::audio::engine::AudioEngine;
 use crate::models::slot::Slot;
-use crate::AppState;
+use crate::recording::engine::RecordingEngine;
+use crate::{sync_shortcuts_for_slots, AppState};
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn add_slot(
@@ -22,7 +25,14 @@ pub async fn add_slot(
     }
 
     let slot = Slot::new(file_path, label)?;
-    slots.push(slot.clone());
+    let mut next_slots = slots.clone();
+    next_slots.push(slot.clone());
+
+    sync_shortcuts_for_slots(&state, &next_slots)?;
+
+    *slots = next_slots;
+    state.mark_dirty()?;
+
     Ok(slot)
 }
 
@@ -39,24 +49,34 @@ pub async fn update_slot(
         .lock()
         .map_err(|_| "failed to lock slot state".to_string())?;
 
-    let slot = slots
-        .iter_mut()
-        .find(|item| item.id == slot_id)
+    let target_index = slots
+        .iter()
+        .position(|item| item.id == slot_id)
         .ok_or_else(|| "slot not found".to_string())?;
 
+    let mut updated = slots[target_index].clone();
+
     if let Some(value) = label {
-        slot.label = value;
+        updated.label = value;
     }
 
     if let Some(value) = shortcut {
-        slot.shortcut = value;
+        updated.shortcut = value.trim().to_string();
     }
 
     if let Some(value) = gain {
-        slot.gain = value.clamp(0.0, 2.0);
+        updated.gain = value.clamp(0.0, 2.0);
     }
 
-    Ok(slot.clone())
+    let mut next_slots = slots.clone();
+    next_slots[target_index] = updated.clone();
+
+    sync_shortcuts_for_slots(&state, &next_slots)?;
+
+    *slots = next_slots;
+    state.mark_dirty()?;
+
+    Ok(updated)
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -66,12 +86,18 @@ pub async fn delete_slot(state: State<'_, AppState>, slot_id: String) -> Result<
         .lock()
         .map_err(|_| "failed to lock slot state".to_string())?;
 
-    let original_len = slots.len();
-    slots.retain(|slot| slot.id != slot_id);
+    let mut next_slots = slots.clone();
+    let original_len = next_slots.len();
+    next_slots.retain(|slot| slot.id != slot_id);
 
-    if slots.len() == original_len {
+    if next_slots.len() == original_len {
         return Err("slot not found".to_string());
     }
+
+    sync_shortcuts_for_slots(&state, &next_slots)?;
+
+    *slots = next_slots;
+    state.mark_dirty()?;
 
     Ok(())
 }
@@ -87,10 +113,29 @@ pub async fn get_all_slots(state: State<'_, AppState>) -> Result<Vec<Slot>, Stri
 }
 
 #[tauri::command(rename_all = "camelCase")]
-pub async fn trigger_slot(state: State<'_, AppState>, slot_id: String) -> Result<(), String> {
+pub async fn trigger_slot(
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+    slot_id: String,
+) -> Result<(), String> {
+    trigger_slot_with_shared(
+        &state.slots,
+        &state.audio_engine,
+        &state.recording_engine,
+        &app_handle,
+        &slot_id,
+    )
+}
+
+pub(crate) fn trigger_slot_with_shared(
+    slots: &Arc<Mutex<Vec<Slot>>>,
+    audio_engine: &Arc<AudioEngine>,
+    recording_engine: &Arc<Mutex<RecordingEngine>>,
+    app_handle: &AppHandle,
+    slot_id: &str,
+) -> Result<(), String> {
     let slot = {
-        let slots = state
-            .slots
+        let slots = slots
             .lock()
             .map_err(|_| "failed to lock slot state".to_string())?;
 
@@ -103,10 +148,30 @@ pub async fn trigger_slot(state: State<'_, AppState>, slot_id: String) -> Result
 
     let audio_path = Path::new(&slot.audio_path);
     let buffer = decode_audio(audio_path)?;
-    let handle = state.audio_engine.play(buffer, slot.gain)?;
+    let handle = audio_engine.play(buffer, slot.gain)?;
+
+    let captured_event = {
+        let mut recording_engine = recording_engine
+            .lock()
+            .map_err(|_| "failed to lock recording engine".to_string())?;
+
+        if recording_engine.is_recording() {
+            Some(recording_engine.capture_event(&slot)?)
+        } else {
+            None
+        }
+    };
+
+    if let Some(event) = captured_event {
+        let _ = app_handle.emit("recording-event-captured", event);
+    }
+
+    let _ = app_handle.emit("slot-triggered", slot.id.clone());
+
     tracing::debug!(
         playback_id = handle.id,
         duration_ms = handle.duration_ms,
+        slot_id = slot.id,
         "slot triggered"
     );
 

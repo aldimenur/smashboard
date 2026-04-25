@@ -159,7 +159,7 @@ Each slot contains:
 - **Reorder Slots:** Drag-and-drop reordering (visual only, tidak affect IDs)
 
 #### 4.1.3 Slot Grid Display
-- Grid layout: 8 columns × 8 rows = 64 slots max
+- Grid layout: 5 columns × 5 rows = 25 slots max
 - Visual states:
   - **Empty:** Dashed border dengan "+" icon
   - **Loaded:** Solid border, label, shortcut badge, waveform icon
@@ -168,16 +168,12 @@ Each slot contains:
   - **Missing audio:** Red warning icon overlay
 
 #### 4.1.4 Shortcut Assignment
+- Setiap slot punya custom shortcut sendiri (editable per-slot)
 - Click slot → press any keyboard combo
 - Supported modifiers: Ctrl, Alt, Shift, combinations
 - Conflict detection: warn jika shortcut sudah digunakan slot lain
-- Reserved shortcuts (tidak bisa dipakai):
-  - Ctrl+S (save)
-  - Ctrl+O (open)
-  - Ctrl+E (export)
-  - Ctrl+Z (undo)
-  - Ctrl+Y (redo)
-  - Space (play/pause)
+- Shortcut scope: keyboard shortcuts dipakai khusus untuk trigger SFX slot
+- Tidak ada shortcut keyboard khusus untuk playback/timeline/project context
 
 #### 4.1.5 Global Shortcut Status Indicator
 - Status bar widget showing:
@@ -195,17 +191,17 @@ Each slot contains:
 - **STOPPED:** Recording finished, events saved to timeline
 
 #### 4.2.2 Transport Controls
-- **Start Recording (R key):**
+- **Start Recording (button):**
   - Clear previous recording session (dengan confirm dialog)
   - Start internal timer at 0ms
   - Transition to RECORDING state
   - Enable trigger capture
   
-- **Pause/Resume (P key):**
+- **Pause/Resume (button):**
   - Pause timer without clearing data
   - Resume timer from paused position
   
-- **Stop Recording (S key):**
+- **Stop Recording (button):**
   - Finalize recording session
   - Commit all captured events to timeline
   - Transition to IDLE state
@@ -389,11 +385,11 @@ Audio: explosion.wav
 - **PAUSED:** Playhead frozen, can resume
 
 **Controls:**
-- **Play (Space):** Start from current playhead position
-- **Pause (Space when playing):** Freeze playhead
-- **Stop (Esc):** Stop playback, playhead stays at current position
-- **Rewind to Start (Home):** Move playhead to 0ms
-- **Jump to End (End):** Move playhead to last event + 1s
+- **Play (button):** Start from current playhead position
+- **Pause (button):** Freeze playhead
+- **Stop (button):** Stop playback, playhead stays at current position
+- **Rewind to Start (button):** Move playhead to 0ms
+- **Jump to End (button):** Move playhead to last event + 1s
 
 #### 4.4.2 Event Triggering During Playback
 
@@ -673,56 +669,23 @@ Audio: explosion.wav
 
 #### 4.7.1 Shortcuts Cheat Sheet
 
-**Accessible via:** Help menu atau F1 key
+**Accessible via:** Help menu button
 
 **Dialog Display:**
 ```
 ┌──────────────────────────────────────────┐
 │ Keyboard Shortcuts                       │
 ├──────────────────────────────────────────┤
-│ PROJECT                                  │
-│ Ctrl+S       Save Project                │
-│ Ctrl+Shift+S Save Project As             │
-│ Ctrl+O       Open Project                │
-│ Ctrl+E       Export                      │
-│                                          │
-│ RECORDING                                │
-│ R            Start Recording             │
-│ P            Pause/Resume Recording      │
-│ S            Stop Recording              │
-│                                          │
-│ TIMELINE PLAYBACK                        │
-│ Space        Play/Pause                  │
-│ Esc          Stop                        │
-│ Home         Rewind to Start             │
-│ End          Jump to End                 │
-│                                          │
-│ EDITING                                  │
-│ Ctrl+Z       Undo                        │
-│ Ctrl+Y       Redo                        │
-│ Delete       Delete Selected Events      │
-│ Ctrl+A       Select All Events           │
-│ Ctrl+D       Duplicate Selected          │
-│ Left/Right   Nudge ±1 frame              │
-│ Shift+Left/  Nudge ±10 frames            │
-│ Right                                    │
-│                                          │
-│ VIEW                                     │
-│ Ctrl++       Zoom In                     │
-│ Ctrl+-       Zoom Out                    │
-│ Ctrl+0       Zoom to Fit                 │
-│                                          │
-│ HELP                                     │
-│ F1           Show This Dialog            │
+│ SFX BOARD                                │
+│ Assigned per slot  Trigger SFX           │
+│ Click Slot         Trigger SFX (mouse)   │
 │                                          │
 │                 [Close]                  │
 └──────────────────────────────────────────┘
 ```
 
 **Features:**
-- Search/filter shortcuts
-- Print option
-- Categories collapsible
+- Menjelaskan bahwa keyboard shortcut difokuskan untuk trigger SFX slot
 
 ---
 
@@ -763,7 +726,7 @@ Audio: explosion.wav
 ├────────────────────────────────────────────────────────┤
 │ ┌────────────────────────┬─────────────────────────┐  │
 │ │  SFX Board (Slots)     │  Recording Transport    │  │
-│ │  8×8 Grid              │  ┌────────────────────┐ │  │
+│ │  5×5 Grid              │  ┌────────────────────┐ │  │
 │ │  [Slot1] [Slot2]...    │  │ ⏺️ Rec  ⏸ Pause   │ │  │
 │ │  [Slot9] [Slot10]...   │  │ ⏹️ Stop 🔄 New    │ │  │
 │ │                        │  │                    │ │  │
@@ -1257,12 +1220,12 @@ listen('export-complete', ({ files }) => { /* show success */ })
 
 ### 15.1 Alpha Release (Internal Testing)
 - Core features: Record, Timeline, Export
-- Limited to 32 slots
+- Limited to 25 slots
 - Basic error handling
 - No autosave
 
 ### 15.2 Beta Release (Public Testing)
-- All 64 slots enabled
+- All 25 slots enabled
 - Autosave dan recovery
 - Global shortcuts
 - Polished UI
