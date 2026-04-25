@@ -66,6 +66,20 @@ body {
   color: var(--text-secondary);
 }
 
+.remote-qr-panel {
+  width: fit-content;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #f9fafb;
+  padding: 8px;
+}
+
+.remote-qr-panel img {
+  width: 200px;
+  height: 200px;
+  display: block;
+}
+
 .project-status {
   margin: 0;
   font-size: 0.8rem;

@@ -5,6 +5,7 @@ pub mod export;
 pub mod models;
 pub mod project;
 pub mod recording;
+pub mod remote;
 pub mod timeline;
 pub mod undo;
 
@@ -20,6 +21,7 @@ use chrono::{DateTime, Utc};
 use models::project::{Project, ProjectSettings};
 use recording::engine::RecordingEngine;
 use recording::shortcut_manager::ShortcutManager;
+use remote::RemoteControlManager;
 use tauri::{Emitter, Manager};
 use timeline::playback::PlaybackEngine;
 use timeline::state::TimelineState;
@@ -48,6 +50,7 @@ pub struct AppState {
     pub has_unsaved_changes: Arc<AtomicBool>,
     pub undo_manager: Arc<Mutex<UndoManager>>,
     pub autosave_manager: Arc<Mutex<AutosaveManager>>,
+    pub remote_control: Arc<Mutex<RemoteControlManager>>,
     pub max_slots: usize,
 }
 
@@ -76,6 +79,7 @@ impl AppState {
             has_unsaved_changes: Arc::new(AtomicBool::new(false)),
             undo_manager: Arc::new(Mutex::new(UndoManager::new(50))),
             autosave_manager: Arc::new(Mutex::new(AutosaveManager::new(120))),
+            remote_control: Arc::new(Mutex::new(RemoteControlManager::default())),
             max_slots: MAX_SLOTS,
         })
     }
@@ -318,6 +322,9 @@ pub fn run() {
             commands::project_commands::force_quit_app,
             commands::project_commands::update_board_layout,
             commands::project_commands::update_board_label,
+            commands::remote_commands::get_remote_control_status,
+            commands::remote_commands::start_remote_control,
+            commands::remote_commands::stop_remote_control,
             commands::undo_commands::undo,
             commands::undo_commands::redo,
             commands::undo_commands::get_undo_redo_state,

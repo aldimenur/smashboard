@@ -3,9 +3,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import QRCode from "qrcode";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowsRotate,
+  faMobileScreenButton,
+  faQrcode,
   faDownload,
   faFileArrowDown,
   faFileCirclePlus,
@@ -16,7 +19,7 @@ import {
 
 import { MissingFilesDialog } from "./MissingFilesDialog";
 import type { ToastType } from "./Toast";
-import type { ProjectStatePayload } from "../types";
+import type { ProjectStatePayload, RemoteControlStatus } from "../types";
 
 interface ProjectMenuProps {
   onOpenExport: () => void;
@@ -73,6 +76,9 @@ export function ProjectMenu({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [remoteStatus, setRemoteStatus] = useState<RemoteControlStatus | null>(null);
+  const [showRemoteQr, setShowRemoteQr] = useState(false);
+  const [remoteQrDataUrl, setRemoteQrDataUrl] = useState<string | null>(null);
   const [missingFiles, setMissingFiles] = useState<string[]>([]);
   const [missingDialogOpen, setMissingDialogOpen] = useState(false);
   const [locatingMissingFiles, setLocatingMissingFiles] = useState(false);
@@ -100,6 +106,15 @@ export function ProjectMenu({
       setError(String(err));
     }
   }, [onProjectNameChange]);
+
+  const refreshRemoteStatus = useCallback(async () => {
+    try {
+      const status = await invoke<RemoteControlStatus>("get_remote_control_status");
+      setRemoteStatus(status);
+    } catch {
+      setRemoteStatus(null);
+    }
+  }, []);
 
   const updateWindowTitle = useCallback(async (state: ProjectStatePayload) => {
     const fileName = getFileName(state.currentPath);
@@ -341,6 +356,7 @@ export function ProjectMenu({
     let unlistenAutosave: UnlistenFn | undefined;
 
     void refreshProjectState();
+    void refreshRemoteStatus();
 
     void listen("timeline-updated", () => {
       void refreshProjectState();
@@ -371,7 +387,46 @@ export function ProjectMenu({
       unlistenProjectLoaded?.();
       unlistenAutosave?.();
     };
-  }, [refreshProjectState]);
+  }, [refreshProjectState, refreshRemoteStatus]);
+
+  useEffect(() => {
+    if (!showRemoteQr || !remoteStatus?.url) {
+      setRemoteQrDataUrl(null);
+      return;
+    }
+
+    void QRCode.toDataURL(remoteStatus.url, {
+      margin: 1,
+      width: 200,
+      color: {
+        dark: "#111827",
+        light: "#f9fafb",
+      },
+    })
+      .then((url: string) => {
+        setRemoteQrDataUrl(url);
+      })
+      .catch(() => {
+        setRemoteQrDataUrl(null);
+      });
+  }, [remoteStatus?.url, showRemoteQr]);
+
+  const toggleRemoteControl = useCallback(async () => {
+    try {
+      const current = await invoke<RemoteControlStatus>("get_remote_control_status");
+      const next = current.running
+        ? await invoke<RemoteControlStatus>("stop_remote_control")
+        : await invoke<RemoteControlStatus>("start_remote_control", { port: 8765 });
+      setRemoteStatus(next);
+      if (!next.running) {
+        setShowRemoteQr(false);
+      }
+      showToast(next.running ? "Remote control enabled" : "Remote control disabled", "success");
+    } catch (err) {
+      setError(`Failed to toggle remote control: ${String(err)}`);
+      showToast(`Failed to toggle remote control: ${String(err)}`, "error");
+    }
+  }, [showToast]);
 
   useEffect(() => {
     let unlistenCloseRequested: UnlistenFn | undefined;
@@ -452,6 +507,16 @@ export function ProjectMenu({
           <FontAwesomeIcon icon={faArrowsRotate} />
           Reset Timeline
         </button>
+        <button type="button" onClick={() => void toggleRemoteControl()}>
+          <FontAwesomeIcon icon={faMobileScreenButton} />
+          {remoteStatus?.running ? "Remote On" : "Remote Off"}
+        </button>
+        {remoteStatus?.running ? (
+          <button type="button" onClick={() => setShowRemoteQr((prev) => !prev)}>
+            <FontAwesomeIcon icon={faQrcode} />
+            {showRemoteQr ? "Hide QR" : "Show QR"}
+          </button>
+        ) : null}
         <button type="button" onClick={() => void requestCloseApp()} className="button-danger-soft">
           <FontAwesomeIcon icon={faPowerOff} />
           Quit
@@ -461,7 +526,14 @@ export function ProjectMenu({
       <div className="project-menu-meta">
         <span>{getFileName(projectState.currentPath)}</span>
         <span>{formatAutosaveText(lastAutosaveAt)}</span>
+        {remoteStatus?.running && remoteStatus.url ? <span>Remote: {remoteStatus.url}</span> : null}
       </div>
+
+      {showRemoteQr && remoteStatus?.running ? (
+        <div className="remote-qr-panel">
+          {remoteQrDataUrl ? <img src={remoteQrDataUrl} alt="Remote control QR code" /> : <span>Generating QR...</span>}
+        </div>
+      ) : null}
 
       {statusMessage ? <p className="project-status">{statusMessage}</p> : null}
       {error ? <p className="slot-error">{error}</p> : null}

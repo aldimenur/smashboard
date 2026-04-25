@@ -74,3 +74,10 @@ export interface UndoRedoState {
   canUndo: boolean;
   canRedo: boolean;
 }
+
+export interface RemoteControlStatus {
+  running: boolean;
+  port: number | null;
+  token: string | null;
+  url: string | null;
+}
