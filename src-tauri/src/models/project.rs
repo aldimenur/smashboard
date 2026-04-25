@@ -27,6 +27,7 @@ pub struct ProjectSettings {
     pub frame_rate: u32,
     pub board_rows: u8,
     pub board_columns: u8,
+    pub board_label: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -44,6 +45,7 @@ impl Default for ProjectSettings {
             frame_rate: 30,
             board_rows: 5,
             board_columns: 5,
+            board_label: "SFX Board".to_string(),
         }
     }
 }

@@ -21,15 +21,20 @@ struct PlayCommand {
     response_tx: mpsc::Sender<Result<PlaybackHandle, String>>,
 }
 
+enum AudioCommand {
+    Play(PlayCommand),
+    StopAll,
+}
+
 pub struct AudioEngine {
-    command_tx: mpsc::Sender<PlayCommand>,
+    command_tx: mpsc::Sender<AudioCommand>,
     next_playback_id: AtomicU64,
     active_playbacks: Arc<Mutex<usize>>,
 }
 
 impl AudioEngine {
     pub fn new() -> Result<Self, String> {
-        let (command_tx, command_rx) = mpsc::channel::<PlayCommand>();
+        let (command_tx, command_rx) = mpsc::channel::<AudioCommand>();
         let (init_tx, init_rx) = mpsc::channel::<Result<(), String>>();
         let active_playbacks = Arc::new(Mutex::new(0usize));
         let active_playbacks_thread = Arc::clone(&active_playbacks);
@@ -53,39 +58,53 @@ impl AudioEngine {
                 let mut active_sinks: HashMap<u64, Arc<Sink>> = HashMap::new();
 
                 while let Ok(command) = command_rx.recv() {
-                    active_sinks.retain(|_, sink| !sink.empty());
+                    match command {
+                        AudioCommand::StopAll => {
+                            for sink in active_sinks.values() {
+                                sink.stop();
+                            }
+                            active_sinks.clear();
 
-                    let concurrent = active_sinks.len() + 1;
-                    let normalized_gain = normalize_gain(command.gain, concurrent);
-
-                    let result = (|| {
-                        let sink = Arc::new(
-                            Sink::try_new(&handle)
-                                .map_err(|err| format!("failed to create sink: {err}"))?,
-                        );
-                        let source = SamplesBuffer::new(
-                            command.buffer.channels,
-                            command.buffer.sample_rate,
-                            command.buffer.samples,
-                        )
-                        .amplify(normalized_gain);
-
-                        sink.append(source);
-                        sink.play();
-
-                        active_sinks.insert(command.playback_id, Arc::clone(&sink));
-
-                        if let Ok(mut guard) = active_playbacks_thread.lock() {
-                            *guard = active_sinks.len();
+                            if let Ok(mut guard) = active_playbacks_thread.lock() {
+                                *guard = 0;
+                            }
                         }
+                        AudioCommand::Play(command) => {
+                            active_sinks.retain(|_, sink| !sink.empty());
 
-                        Ok(PlaybackHandle {
-                            id: command.playback_id,
-                            duration_ms: command.buffer.duration_ms,
-                        })
-                    })();
+                            let concurrent = active_sinks.len() + 1;
+                            let normalized_gain = normalize_gain(command.gain, concurrent);
 
-                    let _ = command.response_tx.send(result);
+                            let result = (|| {
+                                let sink = Arc::new(
+                                    Sink::try_new(&handle)
+                                        .map_err(|err| format!("failed to create sink: {err}"))?,
+                                );
+                                let source = SamplesBuffer::new(
+                                    command.buffer.channels,
+                                    command.buffer.sample_rate,
+                                    command.buffer.samples,
+                                )
+                                .amplify(normalized_gain);
+
+                                sink.append(source);
+                                sink.play();
+
+                                active_sinks.insert(command.playback_id, Arc::clone(&sink));
+
+                                if let Ok(mut guard) = active_playbacks_thread.lock() {
+                                    *guard = active_sinks.len();
+                                }
+
+                                Ok(PlaybackHandle {
+                                    id: command.playback_id,
+                                    duration_ms: command.buffer.duration_ms,
+                                })
+                            })();
+
+                            let _ = command.response_tx.send(result);
+                        }
+                    }
                 }
             })
             .map_err(|err| format!("failed to start audio thread: {err}"))?;
@@ -106,12 +125,12 @@ impl AudioEngine {
         let (response_tx, response_rx) = mpsc::channel::<Result<PlaybackHandle, String>>();
 
         self.command_tx
-            .send(PlayCommand {
+            .send(AudioCommand::Play(PlayCommand {
                 playback_id,
                 buffer,
                 gain,
                 response_tx,
-            })
+            }))
             .map_err(|_| "audio engine is unavailable".to_string())?;
 
         response_rx
@@ -124,5 +143,11 @@ impl AudioEngine {
             .lock()
             .map(|value| *value)
             .unwrap_or(0)
+    }
+
+    pub fn stop_all(&self) -> Result<(), String> {
+        self.command_tx
+            .send(AudioCommand::StopAll)
+            .map_err(|_| "audio engine is unavailable".to_string())
     }
 }

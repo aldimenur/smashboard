@@ -32,6 +32,7 @@ const EMPTY_PROJECT_STATE: ProjectStatePayload = {
   frameRate: 30,
   boardRows: 5,
   boardColumns: 5,
+  boardLabel: "SFX Board",
 };
 
 function ensureProjectExtension(path: string): string {

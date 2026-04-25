@@ -407,6 +407,7 @@ pub async fn reset_timeline(state: State<'_, AppState>, app_handle: AppHandle) -
         playback.stop();
         playback.seek(0.0);
     }
+    let _ = state.audio_engine.stop_all();
     state.playback_loop_running.store(false, Ordering::SeqCst);
 
     state

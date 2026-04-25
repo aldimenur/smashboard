@@ -20,6 +20,8 @@ export function SlotGrid() {
   const [pulseTicks, setPulseTicks] = useState<Record<string, number>>({});
   const [boardRows, setBoardRows] = useState(5);
   const [boardColumns, setBoardColumns] = useState(5);
+  const [boardLabel, setBoardLabel] = useState("SFX Board");
+  const [boardLabelDraft, setBoardLabelDraft] = useState("SFX Board");
   const [layoutError, setLayoutError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,12 +30,16 @@ export function SlotGrid() {
 
     const loadBoardLayout = async () => {
       try {
-        const state = await invoke<{ boardRows: number; boardColumns: number }>("get_project_state");
+        const state = await invoke<{ boardRows: number; boardColumns: number; boardLabel: string }>("get_project_state");
         setBoardRows(state.boardRows);
         setBoardColumns(state.boardColumns);
+        setBoardLabel(state.boardLabel);
+        setBoardLabelDraft(state.boardLabel);
       } catch {
         setBoardRows(5);
         setBoardColumns(5);
+        setBoardLabel("SFX Board");
+        setBoardLabelDraft("SFX Board");
       }
     };
 
@@ -141,6 +147,16 @@ export function SlotGrid() {
     }
   };
 
+  const saveBoardLabel = async () => {
+    try {
+      await invoke("update_board_label", { label: boardLabelDraft });
+      setBoardLabel(boardLabelDraft.trim());
+      setLayoutError(null);
+    } catch (err) {
+      setLayoutError(String(err));
+    }
+  };
+
   const handleEdit = async (slot: Slot) => {
     setEditingSlotId(slot.id);
     setLabelDraft(slot.label);
@@ -177,8 +193,18 @@ export function SlotGrid() {
             <div className="board-settings">
               <span className="board-settings-title">
                 <FontAwesomeIcon icon={faGear} />
-                Board
+                {boardLabel}
               </span>
+              <label>
+                Label
+                <input
+                  className="board-label-input"
+                  value={boardLabelDraft}
+                  onChange={(event) => setBoardLabelDraft(event.currentTarget.value)}
+                  onBlur={() => void saveBoardLabel()}
+                  maxLength={48}
+                />
+              </label>
               <label>
                 Rows
                 <select value={boardRows} onChange={(event) => void handleBoardRowsChange(Number(event.currentTarget.value))}>
@@ -204,48 +230,6 @@ export function SlotGrid() {
               </label>
             </div>
           </header>
-
-          {editingSlot ? (
-            <section className="slot-editor">
-              <h2>Edit Slot</h2>
-              <p className="slot-editor-hint">Each SFX slot can use its own custom shortcut.</p>
-              <label>
-                Label
-                <input
-                  value={labelDraft}
-                  onChange={(event) => setLabelDraft(event.currentTarget.value)}
-                  maxLength={64}
-                />
-              </label>
-
-              <label>
-                Shortcut
-                <ShortcutInput
-                  slotId={editingSlot.id}
-                  currentShortcut={editingSlot.shortcut}
-                  onAssign={async (slotId, shortcut) => {
-                    await updateSlot(slotId, { shortcut: normalizeShortcutString(shortcut) });
-                  }}
-                />
-              </label>
-
-              <div className="slot-editor-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    void updateSlot(editingSlot.id, { label: labelDraft.trim() || editingSlot.label });
-                  }}
-                >
-                  <FontAwesomeIcon icon={faFloppyDisk} />
-                  Save Label
-                </button>
-                <button type="button" onClick={() => setEditingSlotId(null)}>
-                  <FontAwesomeIcon icon={faXmark} />
-                  Close
-                </button>
-              </div>
-            </section>
-          ) : null}
 
           {error ? <p className="slot-error">{error}</p> : null}
           {layoutError ? <p className="slot-error">{layoutError}</p> : null}
@@ -274,6 +258,58 @@ export function SlotGrid() {
           <RecordingTransport />
         </aside>
       </div>
+
+      {editingSlot ? (
+        <section
+          className="dialog-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setEditingSlotId(null);
+            }
+          }}
+        >
+          <div className="dialog-card slot-editor-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <h2>Edit Slot</h2>
+            <p className="slot-editor-hint">Update label and shortcut.</p>
+            <label>
+              Label
+              <input value={labelDraft} onChange={(event) => setLabelDraft(event.currentTarget.value)} maxLength={64} />
+            </label>
+
+            <label>
+              Shortcut
+              <ShortcutInput
+                slotId={editingSlot.id}
+                currentShortcut={editingSlot.shortcut}
+                onAssign={async (slotId, shortcut) => {
+                  await updateSlot(slotId, { shortcut: normalizeShortcutString(shortcut) });
+                }}
+              />
+            </label>
+
+            <div className="slot-editor-actions">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await updateSlot(editingSlot.id, { label: labelDraft.trim() || editingSlot.label });
+                    setEditingSlotId(null);
+                  } catch {
+                    // Error already surfaced by hook state.
+                  }
+                }}
+              >
+                <FontAwesomeIcon icon={faFloppyDisk} />
+                Save
+              </button>
+              <button type="button" onClick={() => setEditingSlotId(null)}>
+                <FontAwesomeIcon icon={faXmark} />
+                Close
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }

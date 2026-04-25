@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMusic, faPenToSquare, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faMusic, faPenToSquare, faTrash, faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
 
 import type { Slot } from "../types";
 
@@ -56,6 +56,14 @@ export function SlotCard({
     return `${(slot.durationMs / 1000).toFixed(2)}s`;
   }, [slot]);
 
+  const fileName = useMemo(() => {
+    if (!slot) {
+      return "";
+    }
+    const parts = slot.audioPath.split(/[\\/]/).filter(Boolean);
+    return parts[parts.length - 1] ?? slot.label;
+  }, [slot]);
+
   const handleTrigger = async () => {
     if (!slot) {
       return;
@@ -87,7 +95,6 @@ export function SlotCard({
           }
         }}
       >
-        <span className="slot-index">{index + 1}</span>
         <span className="slot-empty-label">
           <FontAwesomeIcon icon={faMusic} />
           Import
@@ -116,21 +123,23 @@ export function SlotCard({
       aria-label={`Trigger slot ${slot.label}`}
     >
       <header className="slot-head">
-        <span className="slot-index">{index + 1}</span>
-        <span className="slot-shortcut">{slot.shortcut || "--"}</span>
+        <strong className="slot-label" title={slot.label}>
+          {slot.label}
+        </strong>
+        <span className={`slot-shortcut ${slot.shortcut ? "slot-shortcut-active" : ""}`}>{slot.shortcut || "--"}</span>
       </header>
 
-      <strong className="slot-label" title={slot.label}>
-        {slot.label}
-      </strong>
-
       <div className="slot-meta">
+        <span className="slot-file" title={fileName}>
+          {fileName}
+        </span>
         <span>{durationText}</span>
-        <span>{Math.round(slot.gain * 100)}%</span>
       </div>
 
       <label className="slot-gain">
-        <span>Gain</span>
+        <span className="slot-gain-label">
+          <FontAwesomeIcon icon={faVolumeHigh} />
+        </span>
         <input
           type="range"
           min={0}

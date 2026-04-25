@@ -4,7 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import { StatusBar } from "../StatusBar";
 import type { ToastType } from "../Toast";
-import type { PlaybackStatus, TimelineEvent, UndoRedoState } from "../../types";
+import type { PlaybackStatus, Slot, TimelineEvent, UndoRedoState } from "../../types";
 import { TimelineCanvas } from "./TimelineCanvas";
 import { TimelineToolbar } from "./TimelineToolbar";
 
@@ -19,6 +19,7 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>("Stopped");
   const [undoRedoState, setUndoRedoState] = useState<UndoRedoState>({ canUndo: false, canRedo: false });
+  const [slotColors, setSlotColors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   const showToast = useCallback(
@@ -47,6 +48,19 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
     }
   }, []);
 
+  const loadSlotColors = useCallback(async () => {
+    try {
+      const slots = await invoke<Slot[]>("get_all_slots");
+      const map: Record<string, string> = {};
+      for (const slot of slots) {
+        map[slot.id] = slot.color;
+      }
+      setSlotColors(map);
+    } catch {
+      setSlotColors({});
+    }
+  }, []);
+
   useEffect(() => {
     let unlistenPlayhead: UnlistenFn | undefined;
     let unlistenTimelineUpdated: UnlistenFn | undefined;
@@ -54,6 +68,7 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
 
     void loadEvents();
     void loadUndoRedoState();
+    void loadSlotColors();
 
     void invoke<PlaybackStatus>("get_playback_status")
       .then((status) => {
@@ -72,6 +87,7 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
     void listen("timeline-updated", () => {
       void loadEvents();
       void loadUndoRedoState();
+      void loadSlotColors();
     }).then((fn) => {
       unlistenTimelineUpdated = fn;
     });
@@ -87,7 +103,7 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
       unlistenTimelineUpdated?.();
       unlistenPlaybackStatus?.();
     };
-  }, [loadEvents, loadUndoRedoState]);
+  }, [loadEvents, loadSlotColors, loadUndoRedoState]);
 
   const applyEventsCommit = useCallback(
     async (changes: Array<{ eventId: string; newTimeMs: number }>) => {
@@ -185,6 +201,7 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
   const stop = useCallback(async () => {
     try {
       await invoke("stop_timeline");
+      await invoke("stop_all_audio");
       setPlaybackStatus("Stopped");
       setError(null);
     } catch (err) {
@@ -239,6 +256,7 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
         events={events}
         playheadMs={playheadMs}
         zoom={zoom}
+        slotColors={slotColors}
         selectedIds={selectedIds}
         setSelectedIds={setSelectedIds}
         onPlayheadPreview={setPlayheadMs}

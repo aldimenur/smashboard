@@ -35,6 +35,7 @@ export interface ProjectSettings {
   frameRate: number;
   boardRows: number;
   boardColumns: number;
+  boardLabel: string;
 }
 
 export interface TimelineData {
@@ -60,6 +61,7 @@ export interface ProjectStatePayload {
   frameRate: number;
   boardRows: number;
   boardColumns: number;
+  boardLabel: string;
 }
 
 export interface AutosaveRecoveryInfo {

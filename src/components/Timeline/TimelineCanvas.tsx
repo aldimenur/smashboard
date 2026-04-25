@@ -19,12 +19,11 @@ interface PlayheadDragState {
 
 type DragState = EventDragState | PlayheadDragState;
 
-type OverlapMap = Map<string, number>;
-
 interface TimelineCanvasProps {
   events: TimelineEvent[];
   playheadMs: number;
   zoom: number;
+  slotColors?: Record<string, string>;
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
   onPlayheadPreview: (timeMs: number) => void;
@@ -61,41 +60,23 @@ function assignTracks(events: TimelineEvent[]): CanvasEvent[] {
   });
 }
 
-function detectOverlaps(events: TimelineEvent[]): OverlapMap {
-  const overlapCounts = new Map<string, number>();
-
-  for (let indexA = 0; indexA < events.length; indexA += 1) {
-    const eventA = events[indexA];
-    const aStart = eventA.timeMs;
-    const aEnd = eventA.timeMs + eventA.durationMs;
-    let overlapCount = 0;
-
-    for (let indexB = 0; indexB < events.length; indexB += 1) {
-      if (indexA === indexB) {
-        continue;
-      }
-
-      const eventB = events[indexB];
-      const bStart = eventB.timeMs;
-      const bEnd = eventB.timeMs + eventB.durationMs;
-
-      if (aStart < bEnd && aEnd > bStart) {
-        overlapCount += 1;
-      }
-    }
-
-    if (overlapCount > 0) {
-      overlapCounts.set(eventA.eventId, overlapCount);
-    }
-  }
-
-  return overlapCounts;
+function formatTimelineTime(timeMs: number): string {
+  const totalMs = Math.max(0, Math.floor(timeMs));
+  const minutes = Math.floor(totalMs / 60_000)
+    .toString()
+    .padStart(2, "0");
+  const seconds = Math.floor((totalMs % 60_000) / 1_000)
+    .toString()
+    .padStart(2, "0");
+  const millis = (totalMs % 1_000).toString().padStart(3, "0");
+  return `${minutes}:${seconds}.${millis}`;
 }
 
 export function TimelineCanvas({
   events,
   playheadMs,
   zoom,
+  slotColors = {},
   selectedIds,
   setSelectedIds,
   onPlayheadPreview,
@@ -106,7 +87,6 @@ export function TimelineCanvas({
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   const trackedEvents = useMemo(() => assignTracks(events), [events]);
-  const overlapCounts = useMemo(() => detectOverlaps(events), [events]);
   const trackHeight = 40;
   const trackSpacing = 8;
   const trackCount = Math.max(1, trackedEvents.reduce((max, event) => Math.max(max, event.track + 1), 1));
@@ -125,6 +105,10 @@ export function TimelineCanvas({
   );
   const height = Math.max(220, trackCount * (trackHeight + trackSpacing) + 20);
   const clampTimeFromX = (x: number) => Math.max(0, Math.min((x * zoom), width * zoom));
+  const playheadX = playheadMs / zoom;
+  const playheadLabel = formatTimelineTime(playheadMs);
+  const playheadLabelWidth = 86;
+  const playheadLabelX = Math.max(4, Math.min(width - playheadLabelWidth - 4, playheadX - playheadLabelWidth / 2));
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = event.currentTarget;
@@ -261,9 +245,9 @@ export function TimelineCanvas({
           const y = eventItem.track * (trackHeight + trackSpacing) + 10;
           const widthPx = Math.max(8, eventItem.durationMs / zoom);
           const isSelected = selectedIds.includes(eventItem.eventId);
-          const overlapCount = overlapCounts.get(eventItem.eventId) ?? 0;
-          const badgeX = x + widthPx - 10;
-          const badgeY = y + 10;
+          const shortcut = eventItem.shortcut?.trim() || "--";
+          const shortcutBadgeWidth = Math.max(18, Math.min(widthPx - 8, 58));
+          const color = slotColors[eventItem.slotId] ?? colorFromId(eventItem.slotId);
 
           return (
             <g key={eventItem.eventId}>
@@ -273,34 +257,43 @@ export function TimelineCanvas({
                 width={widthPx}
                 height={trackHeight}
                 rx={6}
-                fill={colorFromId(eventItem.slotId)}
+                fill={color}
                 stroke={isSelected ? "#3B82F6" : "transparent"}
                 strokeWidth={isSelected ? 2 : 0}
               />
-              <text x={x + 6} y={y + 22} fill="#FFFFFF" fontSize={12}>
-                {eventItem.label}
-              </text>
-
-              {overlapCount > 0 ? (
-                <g>
-                  <circle cx={badgeX} cy={badgeY} r={10} fill="#EF4444" />
-                  <text x={badgeX} y={badgeY + 3} fill="#FFFFFF" fontSize={10} textAnchor="middle" fontWeight="700">
-                    x{overlapCount}
+              {widthPx >= 22 ? (
+                <>
+                  <rect x={x + 4} y={y + 7} width={shortcutBadgeWidth} height={18} rx={9} fill="rgba(0,0,0,0.35)" />
+                  <text
+                    x={x + 4 + shortcutBadgeWidth / 2}
+                    y={y + 20}
+                    fill="#FFFFFF"
+                    fontSize={11}
+                    textAnchor="middle"
+                    fontWeight="700"
+                  >
+                    {shortcut}
                   </text>
-                </g>
+                </>
               ) : null}
             </g>
           );
         })}
 
         <line
-          x1={playheadMs / zoom}
+          x1={playheadX}
           y1={0}
-          x2={playheadMs / zoom}
+          x2={playheadX}
           y2={height}
           stroke="#FF4D4D"
           strokeWidth={2}
         />
+        <g>
+          <rect x={playheadLabelX} y={4} width={playheadLabelWidth} height={18} rx={9} fill="#111827" stroke="#374151" />
+          <text x={playheadLabelX + playheadLabelWidth / 2} y={17} fill="#F9FAFB" fontSize={11} textAnchor="middle">
+            {playheadLabel}
+          </text>
+        </g>
       </svg>
     </div>
   );

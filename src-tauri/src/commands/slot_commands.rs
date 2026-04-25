@@ -174,6 +174,11 @@ pub async fn trigger_slot(
     )
 }
 
+#[tauri::command]
+pub async fn stop_all_audio(state: State<'_, AppState>) -> Result<(), String> {
+    state.audio_engine.stop_all()
+}
+
 pub(crate) fn trigger_slot_with_shared(
     slots: &Arc<Mutex<Vec<Slot>>>,
     audio_engine: &Arc<AudioEngine>,

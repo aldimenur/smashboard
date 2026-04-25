@@ -18,6 +18,7 @@ pub struct ProjectStatePayload {
     pub frame_rate: u32,
     pub board_rows: u8,
     pub board_columns: u8,
+    pub board_label: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -193,6 +194,7 @@ pub async fn get_project_state(state: State<'_, AppState>) -> Result<ProjectStat
         frame_rate: settings.frame_rate,
         board_rows: settings.board_rows,
         board_columns: settings.board_columns,
+        board_label: settings.board_label.clone(),
     })
 }
 
@@ -269,6 +271,28 @@ pub async fn update_board_layout(
             .map_err(|_| "failed to lock project settings".to_string())?;
         settings.board_rows = rows;
         settings.board_columns = columns;
+    }
+
+    state.mark_dirty()?;
+    Ok(())
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn update_board_label(state: State<'_, AppState>, label: String) -> Result<(), String> {
+    let trimmed = label.trim();
+    if trimmed.is_empty() {
+        return Err("board label cannot be empty".to_string());
+    }
+    if trimmed.chars().count() > 48 {
+        return Err("board label is too long (max 48 chars)".to_string());
+    }
+
+    {
+        let mut settings = state
+            .project_settings
+            .lock()
+            .map_err(|_| "failed to lock project settings".to_string())?;
+        settings.board_label = trimmed.to_string();
     }
 
     state.mark_dirty()?;
@@ -374,6 +398,7 @@ pub async fn new_project(state: State<'_, AppState>, app_handle: AppHandle) -> R
         playback.stop();
         playback.seek(0.0);
     }
+    let _ = state.audio_engine.stop_all();
 
     state
         .playback_loop_running

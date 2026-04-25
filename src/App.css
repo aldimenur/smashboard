@@ -224,6 +224,10 @@ body {
   color: var(--text-secondary);
 }
 
+.board-label-input {
+  width: 140px;
+}
+
 .board-settings select {
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -443,7 +447,8 @@ button:hover:not(:disabled) {
 .slot-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .slot-index {
@@ -451,12 +456,39 @@ button:hover:not(:disabled) {
   color: var(--text-secondary);
 }
 
+.slot-file {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.66rem;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .slot-shortcut {
-  font-size: 0.7rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  padding: 1px 6px;
-  color: var(--text-secondary);
+  font-size: 0.68rem;
+  border: 1px solid #4b5563;
+  border-radius: 10px;
+  width: 30%;
+  min-width: 28px;
+  max-width: 40px;
+  aspect-ratio: 1 / 1;
+  color: #9ca3af;
+  text-align: center;
+  background: rgba(22, 24, 28, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.slot-shortcut-active {
+  color: #f9fafb;
+  border-color: color-mix(in srgb, var(--slot-color) 55%, #334155);
+  background: color-mix(in srgb, var(--slot-color) 28%, #111827);
 }
 
 .slot-label {
@@ -467,23 +499,38 @@ button:hover:not(:disabled) {
 }
 
 .slot-meta {
-  margin-top: 5px;
+  margin-top: 3px;
   font-size: 0.72rem;
   color: var(--text-secondary);
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
 .slot-gain {
-  display: grid;
-  gap: 3px;
-  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
   font-size: 0.68rem;
   color: var(--text-secondary);
+  min-width: 0;
+}
+
+.slot-gain-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .slot-gain input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.slot-editor-modal {
+  width: min(420px, 100%);
 }
 
 .slot-context-menu {
