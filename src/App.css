@@ -72,12 +72,27 @@ body {
   border-radius: 10px;
   background: #f9fafb;
   padding: 8px;
+  color: #111827;
+  display: grid;
+  gap: 8px;
+}
+
+.remote-qr-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .remote-qr-panel img {
   width: 200px;
   height: 200px;
   display: block;
+}
+
+.remote-modal-card {
+  width: min(460px, 100%);
 }
 
 .project-status {

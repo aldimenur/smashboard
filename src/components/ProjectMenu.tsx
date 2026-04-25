@@ -77,7 +77,7 @@ export function ProjectMenu({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [remoteStatus, setRemoteStatus] = useState<RemoteControlStatus | null>(null);
-  const [showRemoteQr, setShowRemoteQr] = useState(false);
+  const [remoteModalOpen, setRemoteModalOpen] = useState(false);
   const [remoteQrDataUrl, setRemoteQrDataUrl] = useState<string | null>(null);
   const [missingFiles, setMissingFiles] = useState<string[]>([]);
   const [missingDialogOpen, setMissingDialogOpen] = useState(false);
@@ -390,7 +390,7 @@ export function ProjectMenu({
   }, [refreshProjectState, refreshRemoteStatus]);
 
   useEffect(() => {
-    if (!showRemoteQr || !remoteStatus?.url) {
+    if (!remoteModalOpen || !remoteStatus?.running || !remoteStatus?.url) {
       setRemoteQrDataUrl(null);
       return;
     }
@@ -409,7 +409,7 @@ export function ProjectMenu({
       .catch(() => {
         setRemoteQrDataUrl(null);
       });
-  }, [remoteStatus?.url, showRemoteQr]);
+  }, [remoteModalOpen, remoteStatus?.running, remoteStatus?.url]);
 
   const toggleRemoteControl = useCallback(async () => {
     try {
@@ -418,9 +418,6 @@ export function ProjectMenu({
         ? await invoke<RemoteControlStatus>("stop_remote_control")
         : await invoke<RemoteControlStatus>("start_remote_control", { port: 8765 });
       setRemoteStatus(next);
-      if (!next.running) {
-        setShowRemoteQr(false);
-      }
       showToast(next.running ? "Remote control enabled" : "Remote control disabled", "success");
     } catch (err) {
       setError(`Failed to toggle remote control: ${String(err)}`);
@@ -507,16 +504,10 @@ export function ProjectMenu({
           <FontAwesomeIcon icon={faArrowsRotate} />
           Reset Timeline
         </button>
-        <button type="button" onClick={() => void toggleRemoteControl()}>
+        <button type="button" onClick={() => setRemoteModalOpen(true)}>
           <FontAwesomeIcon icon={faMobileScreenButton} />
-          {remoteStatus?.running ? "Remote On" : "Remote Off"}
+          Remote
         </button>
-        {remoteStatus?.running ? (
-          <button type="button" onClick={() => setShowRemoteQr((prev) => !prev)}>
-            <FontAwesomeIcon icon={faQrcode} />
-            {showRemoteQr ? "Hide QR" : "Show QR"}
-          </button>
-        ) : null}
         <button type="button" onClick={() => void requestCloseApp()} className="button-danger-soft">
           <FontAwesomeIcon icon={faPowerOff} />
           Quit
@@ -529,14 +520,56 @@ export function ProjectMenu({
         {remoteStatus?.running && remoteStatus.url ? <span>Remote: {remoteStatus.url}</span> : null}
       </div>
 
-      {showRemoteQr && remoteStatus?.running ? (
-        <div className="remote-qr-panel">
-          {remoteQrDataUrl ? <img src={remoteQrDataUrl} alt="Remote control QR code" /> : <span>Generating QR...</span>}
-        </div>
-      ) : null}
-
       {statusMessage ? <p className="project-status">{statusMessage}</p> : null}
       {error ? <p className="slot-error">{error}</p> : null}
+
+      {remoteModalOpen ? (
+        <section
+          className="dialog-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setRemoteModalOpen(false);
+            }
+          }}
+        >
+          <div className="dialog-card remote-modal-card" onMouseDown={(event) => event.stopPropagation()}>
+            <h2>
+              <FontAwesomeIcon icon={faMobileScreenButton} />
+              Remote Control
+            </h2>
+            <p className="slot-editor-hint">
+              Status: {remoteStatus?.running ? "Running" : "Stopped"}
+              {remoteStatus?.port ? ` (:${remoteStatus.port})` : ""}
+            </p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => void toggleRemoteControl()}>
+                <FontAwesomeIcon icon={faMobileScreenButton} />
+                {remoteStatus?.running ? "Turn Off" : "Turn On"}
+              </button>
+              <button type="button" onClick={() => setRemoteModalOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            {remoteStatus?.running && remoteStatus.url ? (
+              <>
+                <p className="slot-editor-hint">{remoteStatus.url}</p>
+                <div className="remote-qr-panel">
+                  <div className="remote-qr-title">
+                    <FontAwesomeIcon icon={faQrcode} />
+                    Scan to Connect
+                  </div>
+                  {remoteQrDataUrl ? (
+                    <img src={remoteQrDataUrl} alt="Remote control QR code" />
+                  ) : (
+                    <span>Generating QR...</span>
+                  )}
+                </div>
+              </>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <MissingFilesDialog
         files={missingFiles}

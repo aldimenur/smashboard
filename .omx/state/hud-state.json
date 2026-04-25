@@ -1,5 +1,6 @@
 {
-  "last_turn_at": "2026-04-25T08:28:28.374Z",
-  "turn_count": 0,
-  "last_agent_output": ""
+  "last_turn_at": "2026-04-25T10:55:19.149Z",
+  "turn_count": 3,
+  "last_progress_at": "2026-04-25T10:55:19.149Z",
+  "last_agent_output": "Implemented. Mobile remote no longer spams `/api/state`; it now uses one long-lived LAN stream and t"
 }

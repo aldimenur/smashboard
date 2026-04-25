@@ -4,15 +4,15 @@
     "omx-1777105728494-dkkn84": {
       "session_id": "omx-1777105728494-dkkn84",
       "leader_thread_id": "019dc3c1-7d4c-7f22-983d-0bbe7d04d853",
-      "updated_at": "2026-04-25T10:32:15.185Z",
+      "updated_at": "2026-04-25T10:42:11.395Z",
       "threads": {
         "019dc3c1-7d4c-7f22-983d-0bbe7d04d853": {
           "thread_id": "019dc3c1-7d4c-7f22-983d-0bbe7d04d853",
           "kind": "leader",
           "first_seen_at": "2026-04-25T08:37:09.766Z",
-          "last_seen_at": "2026-04-25T10:32:15.185Z",
-          "last_turn_id": "019dc42d-27d2-70b1-b0e6-3a38d176f3df",
-          "turn_count": 14
+          "last_seen_at": "2026-04-25T10:42:11.395Z",
+          "last_turn_id": "019dc438-65a9-7721-befc-3a6d98e93bdd",
+          "turn_count": 17
         }
       }
     }
