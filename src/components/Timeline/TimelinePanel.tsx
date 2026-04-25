@@ -4,7 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import { StatusBar } from "../StatusBar";
 import type { ToastType } from "../Toast";
-import type { PlaybackStatus, Slot, TimelineEvent, UndoRedoState } from "../../types";
+import type { PlaybackStatus, RecordingTimeUpdate, Slot, TimelineEvent, UndoRedoState } from "../../types";
 import { TimelineCanvas } from "./TimelineCanvas";
 import { TimelineToolbar } from "./TimelineToolbar";
 
@@ -65,6 +65,8 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
     let unlistenPlayhead: UnlistenFn | undefined;
     let unlistenTimelineUpdated: UnlistenFn | undefined;
     let unlistenPlaybackStatus: UnlistenFn | undefined;
+    let unlistenRecordingTime: UnlistenFn | undefined;
+    let unlistenRecordingEvent: UnlistenFn | undefined;
 
     void loadEvents();
     void loadUndoRedoState();
@@ -98,10 +100,32 @@ export function TimelinePanel({ onToast }: TimelinePanelProps) {
       unlistenPlaybackStatus = fn;
     });
 
+    void listen<RecordingTimeUpdate>("recording-time-update", (event) => {
+      setPlayheadMs(event.payload.timeMs);
+    }).then((fn) => {
+      unlistenRecordingTime = fn;
+    });
+
+    void listen<TimelineEvent>("recording-event-captured", (event) => {
+      setEvents((prev) => {
+        if (prev.some((item) => item.eventId === event.payload.eventId)) {
+          return prev;
+        }
+
+        const next = [...prev, event.payload];
+        next.sort((left, right) => left.timeMs - right.timeMs);
+        return next;
+      });
+    }).then((fn) => {
+      unlistenRecordingEvent = fn;
+    });
+
     return () => {
       unlistenPlayhead?.();
       unlistenTimelineUpdated?.();
       unlistenPlaybackStatus?.();
+      unlistenRecordingTime?.();
+      unlistenRecordingEvent?.();
     };
   }, [loadEvents, loadSlotColors, loadUndoRedoState]);
 

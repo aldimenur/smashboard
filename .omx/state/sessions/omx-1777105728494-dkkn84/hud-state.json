@@ -1,6 +1,6 @@
 {
-  "last_turn_at": "2026-04-25T10:05:45.011Z",
-  "last_progress_at": "2026-04-25T10:05:45.011Z",
-  "turn_count": 10,
-  "last_agent_output": "Fixed.\n\n### Changes made\n\n- **Small-screen slider layout bug**\n  - Changed slider row to a flexible "
+  "last_turn_at": "2026-04-25T10:07:41.163Z",
+  "last_progress_at": "2026-04-25T10:07:41.163Z",
+  "turn_count": 11,
+  "last_agent_output": "Done.\n\n### Implemented\n- **Playhead now follows recording in real time**\n  - Timeline listens to `re"
 }
