@@ -397,6 +397,45 @@ pub async fn get_playback_status(state: State<'_, AppState>) -> Result<PlaybackS
     Ok(playback.status())
 }
 
+#[tauri::command]
+pub async fn reset_timeline(state: State<'_, AppState>, app_handle: AppHandle) -> Result<(), String> {
+    {
+        let mut playback = state
+            .playback_engine
+            .lock()
+            .map_err(|_| "failed to lock playback engine".to_string())?;
+        playback.stop();
+        playback.seek(0.0);
+    }
+    state.playback_loop_running.store(false, Ordering::SeqCst);
+
+    state
+        .playback_triggered_event_ids
+        .lock()
+        .map_err(|_| "failed to lock playback trigger state".to_string())?
+        .clear();
+
+    {
+        let mut timeline = state
+            .timeline_state
+            .lock()
+            .map_err(|_| "failed to lock timeline state".to_string())?;
+        timeline.events.clear();
+        timeline.total_duration_ms = 0.0;
+        timeline.playhead_position_ms = 0.0;
+    }
+
+    if let Ok(mut undo) = state.undo_manager.lock() {
+        undo.clear();
+    }
+
+    state.mark_dirty()?;
+    let _ = app_handle.emit("timeline-updated", ());
+    let _ = app_handle.emit("playhead-update", 0.0f64);
+    let _ = app_handle.emit("playback-status-updated", PlaybackStatus::Stopped);
+    Ok(())
+}
+
 fn push_undo_action(state: &AppState, action: UndoAction) -> Result<(), String> {
     let mut undo = state
         .undo_manager

@@ -8,7 +8,6 @@ import { faFloppyDisk, faGear, faXmark } from "@fortawesome/free-solid-svg-icons
 import { useSlots } from "../hooks/useSlots";
 import type { Slot } from "../types";
 import { normalizeShortcutString, shortcutFromKeyboardEvent } from "../utils/shortcut";
-import { GlobalShortcutToggle } from "./GlobalShortcutToggle";
 import { RecordingTransport } from "./RecordingTransport";
 import { ShortcutInput } from "./ShortcutInput";
 import { SlotCard } from "./SlotCard";
@@ -273,7 +272,6 @@ export function SlotGrid() {
         <aside className="recording-panel">
           <h2>Recording Transport</h2>
           <RecordingTransport />
-          <GlobalShortcutToggle />
         </aside>
       </div>
     </section>

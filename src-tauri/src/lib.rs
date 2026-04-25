@@ -293,8 +293,6 @@ pub fn run() {
             commands::recording_commands::resume_recording,
             commands::recording_commands::stop_recording,
             commands::recording_commands::get_recording_status,
-            commands::shortcut_commands::set_global_shortcuts_enabled,
-            commands::shortcut_commands::get_global_shortcuts_enabled,
             commands::timeline_commands::get_timeline_events,
             commands::timeline_commands::add_timeline_event,
             commands::timeline_commands::update_event_time,
@@ -306,8 +304,10 @@ pub fn run() {
             commands::timeline_commands::stop_timeline,
             commands::timeline_commands::seek_timeline,
             commands::timeline_commands::get_playback_status,
+            commands::timeline_commands::reset_timeline,
             commands::project_commands::save_project,
             commands::project_commands::load_project,
+            commands::project_commands::new_project,
             commands::project_commands::validate_audio_paths,
             commands::project_commands::update_audio_path,
             commands::project_commands::autosave,
@@ -403,7 +403,7 @@ pub(crate) fn apply_loaded_project(state: &AppState, project: &Project, file_pat
             .shortcut_manager
             .lock()
             .map_err(|_| "failed to lock shortcut manager".to_string())?;
-        shortcut_manager.set_enabled(project.settings.global_shortcuts_enabled)?;
+        shortcut_manager.set_enabled(false)?;
     }
 
     {
@@ -438,6 +438,7 @@ pub(crate) fn apply_loaded_project(state: &AppState, project: &Project, file_pat
             .lock()
             .map_err(|_| "failed to lock project settings".to_string())?;
         *settings = project.settings.clone();
+        settings.global_shortcuts_enabled = false;
     }
 
     {

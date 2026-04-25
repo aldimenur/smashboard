@@ -5,7 +5,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::autosave::AutosaveManager;
-use crate::models::project::Project;
+use crate::models::project::{Project, ProjectSettings, TimelineData};
 use crate::{apply_loaded_project, AppState};
 
 #[derive(Clone, Debug, Serialize)]
@@ -273,4 +273,143 @@ pub async fn update_board_layout(
 
     state.mark_dirty()?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn new_project(state: State<'_, AppState>, app_handle: AppHandle) -> Result<Project, String> {
+    let now = Utc::now();
+    let project = Project {
+        version: "0.1.0".to_string(),
+        project_name: "Untitled".to_string(),
+        created_at: now,
+        modified_at: now,
+        settings: ProjectSettings::default(),
+        slots: Vec::new(),
+        timeline: TimelineData {
+            events: Vec::new(),
+            total_duration_ms: 0.0,
+        },
+    };
+
+    {
+        let mut slots = state
+            .slots
+            .lock()
+            .map_err(|_| "failed to lock slots".to_string())?;
+        slots.clear();
+    }
+
+    {
+        let mut timeline = state
+            .timeline_state
+            .lock()
+            .map_err(|_| "failed to lock timeline".to_string())?;
+        timeline.events.clear();
+        timeline.total_duration_ms = 0.0;
+        timeline.playhead_position_ms = 0.0;
+    }
+
+    {
+        let mut settings = state
+            .project_settings
+            .lock()
+            .map_err(|_| "failed to lock project settings".to_string())?;
+        *settings = ProjectSettings::default();
+    }
+
+    {
+        let mut manager = state
+            .shortcut_manager
+            .lock()
+            .map_err(|_| "failed to lock shortcut manager".to_string())?;
+        manager.sync_slots(&[])?;
+        manager.set_enabled(false)?;
+    }
+
+    {
+        let mut project_name = state
+            .project_name
+            .lock()
+            .map_err(|_| "failed to lock project name".to_string())?;
+        *project_name = "Untitled".to_string();
+    }
+
+    {
+        let mut created_at = state
+            .project_created_at
+            .lock()
+            .map_err(|_| "failed to lock project created time".to_string())?;
+        *created_at = now;
+    }
+
+    {
+        let mut modified_at = state
+            .project_modified_at
+            .lock()
+            .map_err(|_| "failed to lock project modified time".to_string())?;
+        *modified_at = now;
+    }
+
+    {
+        let mut current_project_path = state
+            .current_project_path
+            .lock()
+            .map_err(|_| "failed to lock project path".to_string())?;
+        *current_project_path = None;
+    }
+
+    {
+        let mut last_saved_at = state
+            .last_saved_at
+            .lock()
+            .map_err(|_| "failed to lock project save timestamp".to_string())?;
+        *last_saved_at = None;
+    }
+
+    {
+        let mut playback = state
+            .playback_engine
+            .lock()
+            .map_err(|_| "failed to lock playback engine".to_string())?;
+        playback.stop();
+        playback.seek(0.0);
+    }
+
+    state
+        .playback_loop_running
+        .store(false, std::sync::atomic::Ordering::SeqCst);
+    state
+        .playback_triggered_event_ids
+        .lock()
+        .map_err(|_| "failed to lock playback trigger state".to_string())?
+        .clear();
+
+    {
+        let mut recording_engine = state
+            .recording_engine
+            .lock()
+            .map_err(|_| "failed to lock recording engine".to_string())?;
+        *recording_engine = crate::recording::engine::RecordingEngine::new();
+    }
+    state
+        .recording_timer_running
+        .store(false, std::sync::atomic::Ordering::SeqCst);
+
+    if let Ok(mut undo_manager) = state.undo_manager.lock() {
+        undo_manager.clear();
+    }
+
+    if let Ok(mut autosave_manager) = state.autosave_manager.lock() {
+        autosave_manager.mark_saved();
+    }
+
+    state
+        .has_unsaved_changes
+        .store(false, std::sync::atomic::Ordering::SeqCst);
+
+    let _ = app_handle.emit("timeline-updated", ());
+    let _ = app_handle.emit("playhead-update", 0.0f64);
+    let _ = app_handle.emit("project-loaded", project.clone());
+
+    Ok(project)
 }

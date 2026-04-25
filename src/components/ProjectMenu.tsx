@@ -4,7 +4,15 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm, open, save } from "@tauri-apps/plugin-dialog";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDownload, faFileArrowDown, faFileExport, faFileImport, faPowerOff } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowsRotate,
+  faDownload,
+  faFileArrowDown,
+  faFileCirclePlus,
+  faFileExport,
+  faFileImport,
+  faPowerOff,
+} from "@fortawesome/free-solid-svg-icons";
 
 import { MissingFilesDialog } from "./MissingFilesDialog";
 import type { ToastType } from "./Toast";
@@ -258,6 +266,70 @@ export function ProjectMenu({
     }
   }, [busy, projectState.hasUnsavedChanges, refreshProjectState, resolveMissingAudioPaths, showToast]);
 
+  const createNewProject = useCallback(async () => {
+    if (busy) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (projectState.hasUnsavedChanges) {
+        const shouldDiscard = await confirm("Discard unsaved changes and create a new project?", {
+          title: "Unsaved Changes",
+          kind: "warning",
+          okLabel: "Discard",
+          cancelLabel: "Cancel",
+        });
+
+        if (!shouldDiscard) {
+          return;
+        }
+      }
+
+      await invoke("new_project");
+      await refreshProjectState();
+      setStatusMessage("New project created");
+      setError(null);
+      showToast("New project created", "success");
+    } catch (err) {
+      setError(`Failed to create new project: ${String(err)}`);
+      showToast(`Failed to create new project: ${String(err)}`, "error");
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, projectState.hasUnsavedChanges, refreshProjectState, showToast]);
+
+  const resetTimeline = useCallback(async () => {
+    if (busy) {
+      return;
+    }
+
+    const shouldReset = await confirm("Reset timeline and remove all events?", {
+      title: "Reset Timeline",
+      kind: "warning",
+      okLabel: "Reset",
+      cancelLabel: "Cancel",
+    });
+
+    if (!shouldReset) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await invoke("reset_timeline");
+      await refreshProjectState();
+      setStatusMessage("Timeline reset");
+      setError(null);
+      showToast("Timeline reset", "success");
+    } catch (err) {
+      setError(`Failed to reset timeline: ${String(err)}`);
+      showToast(`Failed to reset timeline: ${String(err)}`, "error");
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, refreshProjectState, showToast]);
+
   useEffect(() => {
     void updateWindowTitle(projectState);
   }, [projectState, updateWindowTitle]);
@@ -367,9 +439,17 @@ export function ProjectMenu({
           <FontAwesomeIcon icon={faFileImport} />
           Open
         </button>
+        <button type="button" onClick={() => void createNewProject()} disabled={busy}>
+          <FontAwesomeIcon icon={faFileCirclePlus} />
+          New
+        </button>
         <button type="button" onClick={onOpenExport} disabled={busy}>
           <FontAwesomeIcon icon={faFileExport} />
           Export
+        </button>
+        <button type="button" onClick={() => void resetTimeline()} disabled={busy}>
+          <FontAwesomeIcon icon={faArrowsRotate} />
+          Reset Timeline
         </button>
         <button type="button" onClick={() => void requestCloseApp()} className="button-danger-soft">
           <FontAwesomeIcon icon={faPowerOff} />
