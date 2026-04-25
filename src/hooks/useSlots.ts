@@ -7,6 +7,8 @@ interface UpdateSlotPayload {
   label?: string;
   shortcut?: string;
   gain?: number;
+  imageDataUrl?: string;
+  iconName?: string;
 }
 
 export function useSlots() {
@@ -52,6 +54,8 @@ export function useSlots() {
         label: payload.label,
         shortcut: payload.shortcut,
         gain: payload.gain,
+        imageDataUrl: payload.imageDataUrl,
+        iconName: payload.iconName,
       });
 
       setSlots((prev) => prev.map((slot) => (slot.id === slotId ? updated : slot)));

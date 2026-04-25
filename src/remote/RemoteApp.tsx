@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMusic } from "@fortawesome/free-solid-svg-icons";
+import { getSlotIcon } from "../utils/slotIcons";
 
 type PlaybackStatus = "Stopped" | "Playing" | "Paused";
 type RecordingStatus = "Idle" | "Recording" | "Paused";
@@ -12,6 +15,8 @@ interface Slot {
   durationMs: number;
   color: string;
   audioPath: string;
+  imageDataUrl?: string;
+  iconName?: string;
 }
 
 interface RemoteState {
@@ -158,7 +163,9 @@ export function RemoteApp() {
           return (
             <article
               key={slot.id}
-              className={`remote-slot remote-slot-loaded ${pressed[slot.id] ? "remote-slot-playing" : ""}`}
+              className={`remote-slot remote-slot-loaded ${pressed[slot.id] ? "remote-slot-playing" : ""} ${
+                slot.imageDataUrl ? "remote-slot-with-full-image" : ""
+              }`}
               style={{ "--slot-color": slot.color || "#3a3a3a" } as CSSProperties}
               role="button"
               tabIndex={0}
@@ -171,19 +178,42 @@ export function RemoteApp() {
               }}
               aria-label={`Trigger slot ${slot.label}`}
             >
-              <div className="remote-slot-head">
-                <strong className="remote-slot-label" title={slot.label}>
-                  {slot.label || "Untitled"}
-                </strong>
-                <span className={`remote-slot-shortcut ${slot.shortcut ? "remote-slot-shortcut-active" : ""}`}>
+              {slot.imageDataUrl ? <img className="remote-slot-full-image" src={slot.imageDataUrl} alt="" /> : null}
+              {slot.imageDataUrl ? (
+                <span
+                  className={`remote-slot-shortcut remote-slot-shortcut-floating ${
+                    slot.shortcut ? "remote-slot-shortcut-active" : ""
+                  }`}
+                >
                   {slot.shortcut || "--"}
                 </span>
-              </div>
-              <div className="remote-slot-meta">
-                <span className="remote-slot-file" title={toFileName(slot.audioPath, slot.label)}>
-                  {toFileName(slot.audioPath, slot.label)}
-                </span>
-                <span>{(slot.durationMs / 1000).toFixed(2)}s</span>
+              ) : null}
+              <div className="remote-slot-details">
+                <div className="remote-slot-content">
+                  {!slot.imageDataUrl ? (
+                    <div className="remote-slot-image remote-slot-image-empty" aria-hidden="true">
+                      <FontAwesomeIcon icon={getSlotIcon(slot.iconName) ?? faMusic} />
+                    </div>
+                  ) : null}
+                  <div className="remote-slot-content-text">
+                    <div className="remote-slot-head">
+                      <strong className="remote-slot-label" title={slot.label}>
+                        {slot.label || "Untitled"}
+                      </strong>
+                      {!slot.imageDataUrl ? (
+                        <span className={`remote-slot-shortcut ${slot.shortcut ? "remote-slot-shortcut-active" : ""}`}>
+                          {slot.shortcut || "--"}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="remote-slot-meta">
+                      <span className="remote-slot-file" title={toFileName(slot.audioPath, slot.label)}>
+                        {toFileName(slot.audioPath, slot.label)}
+                      </span>
+                      <span>{(slot.durationMs / 1000).toFixed(2)}s</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </article>
           );

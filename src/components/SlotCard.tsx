@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMusic, faPenToSquare, faTrash, faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
 
 import type { Slot } from "../types";
+import { getSlotIcon } from "../utils/slotIcons";
 
 interface SlotCardProps {
   index: number;
@@ -103,9 +104,12 @@ export function SlotCard({
     );
   }
 
+  const slotIcon = getSlotIcon(slot.iconName) ?? faMusic;
+  const hasFullImage = Boolean(slot.imageDataUrl);
+
   return (
     <article
-      className={`slot-card slot-loaded ${isPlaying ? "slot-playing" : ""}`}
+      className={`slot-card slot-loaded ${isPlaying ? "slot-playing" : ""} ${hasFullImage ? "slot-with-full-image" : ""}`}
       style={style}
       onClick={handleTrigger}
       onContextMenu={(event) => {
@@ -122,38 +126,57 @@ export function SlotCard({
       }}
       aria-label={`Trigger slot ${slot.label}`}
     >
-      <header className="slot-head">
-        <strong className="slot-label" title={slot.label}>
-          {slot.label}
-        </strong>
-        <span className={`slot-shortcut ${slot.shortcut ? "slot-shortcut-active" : ""}`}>{slot.shortcut || "--"}</span>
-      </header>
-
-      <div className="slot-meta">
-        <span className="slot-file" title={fileName}>
-          {fileName}
+      {hasFullImage ? <img className="slot-full-image" src={slot.imageDataUrl} alt="" /> : null}
+      {hasFullImage ? (
+        <span className={`slot-shortcut slot-shortcut-floating ${slot.shortcut ? "slot-shortcut-active" : ""}`}>
+          {slot.shortcut || "--"}
         </span>
-        <span>{durationText}</span>
+      ) : null}
+      <div className="slot-details">
+        <div className="slot-content">
+          {!hasFullImage ? (
+            <div className="slot-image slot-image-empty" aria-hidden="true">
+              <FontAwesomeIcon icon={slotIcon} />
+            </div>
+          ) : null}
+          <div className="slot-content-text">
+            <header className="slot-head">
+              <strong className="slot-label" title={slot.label}>
+                {slot.label}
+              </strong>
+              {!hasFullImage ? (
+                <span className={`slot-shortcut ${slot.shortcut ? "slot-shortcut-active" : ""}`}>{slot.shortcut || "--"}</span>
+              ) : null}
+            </header>
+
+            <div className="slot-meta">
+              <span className="slot-file" title={fileName}>
+                {fileName}
+              </span>
+              <span>{durationText}</span>
+            </div>
+          </div>
+        </div>
+
+        <label className="slot-gain">
+          <span className="slot-gain-label">
+            <FontAwesomeIcon icon={faVolumeHigh} />
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={2}
+            step={0.05}
+            value={slot.gain}
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            onChange={(event) => {
+              const gain = Number.parseFloat(event.currentTarget.value);
+              void onGainChange(slot.id, gain);
+            }}
+          />
+        </label>
       </div>
-
-      <label className="slot-gain">
-        <span className="slot-gain-label">
-          <FontAwesomeIcon icon={faVolumeHigh} />
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={2}
-          step={0.05}
-          value={slot.gain}
-          onClick={(event) => event.stopPropagation()}
-          onMouseDown={(event) => event.stopPropagation()}
-          onChange={(event) => {
-            const gain = Number.parseFloat(event.currentTarget.value);
-            void onGainChange(slot.id, gain);
-          }}
-        />
-      </label>
 
       {menuOpen ? (
         <div

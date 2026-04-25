@@ -3,6 +3,8 @@ export interface Slot {
   position: number;
   label: string;
   audioPath: string;
+  imageDataUrl?: string;
+  iconName?: string;
   shortcut: string;
   gain: number;
   durationMs: number;

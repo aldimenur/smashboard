@@ -16,6 +16,10 @@ pub struct Slot {
     pub position: usize,
     pub label: String,
     pub audio_path: String,
+    #[serde(default)]
+    pub image_data_url: Option<String>,
+    #[serde(default)]
+    pub icon_name: Option<String>,
     pub shortcut: String,
     pub gain: f32,
     pub duration_ms: f64,
@@ -43,6 +47,8 @@ impl Slot {
             position,
             label: label.unwrap_or_else(|| fallback_label.to_string()),
             audio_path,
+            image_data_url: None,
+            icon_name: None,
             shortcut: String::new(),
             gain: 1.0,
             duration_ms: decoded.duration_ms,

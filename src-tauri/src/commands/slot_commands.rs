@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::audio::decoder::decode_audio;
@@ -8,6 +9,27 @@ use crate::audio::engine::AudioEngine;
 use crate::models::slot::Slot;
 use crate::recording::engine::RecordingEngine;
 use crate::{sync_shortcuts_for_slots, AppState};
+
+const MAX_SLOT_IMAGE_BYTES: usize = 2 * 1024 * 1024;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SlotImageLoadResult {
+    pub mime_type: String,
+    pub bytes: Vec<u8>,
+}
+
+fn image_mime_type(path: &Path) -> Option<&'static str> {
+    let extension = path.extension()?.to_str()?.to_ascii_lowercase();
+    match extension.as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "webp" => Some("image/webp"),
+        "gif" => Some("image/gif"),
+        "svg" => Some("image/svg+xml"),
+        _ => None,
+    }
+}
 
 fn first_available_position(slots: &[Slot], max_slots: usize) -> Option<usize> {
     (0..max_slots).find(|position| slots.iter().all(|slot| slot.position != *position))
@@ -87,6 +109,8 @@ pub async fn update_slot(
     label: Option<String>,
     shortcut: Option<String>,
     gain: Option<f32>,
+    image_data_url: Option<String>,
+    icon_name: Option<String>,
 ) -> Result<Slot, String> {
     let mut slots = state
         .slots
@@ -110,6 +134,24 @@ pub async fn update_slot(
 
     if let Some(value) = gain {
         updated.gain = value.clamp(0.0, 2.0);
+    }
+
+    if let Some(value) = image_data_url {
+        let trimmed = value.trim();
+        updated.image_data_url = if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        };
+    }
+
+    if let Some(value) = icon_name {
+        let trimmed = value.trim();
+        updated.icon_name = if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        };
     }
 
     let mut next_slots = slots.clone();
@@ -157,6 +199,32 @@ pub async fn get_all_slots(state: State<'_, AppState>) -> Result<Vec<Slot>, Stri
     let mut sorted = slots.clone();
     sorted.sort_by_key(|item| item.position);
     Ok(sorted)
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn load_slot_image_data(file_path: String) -> Result<SlotImageLoadResult, String> {
+    let path = Path::new(&file_path);
+    if !path.exists() {
+        return Err(format!("image file not found: {}", path.display()));
+    }
+
+    let mime_type = image_mime_type(path)
+        .ok_or_else(|| "unsupported image format (use png/jpg/jpeg/webp/gif/svg)".to_string())?;
+
+    let metadata = std::fs::metadata(path).map_err(|err| format!("failed to read image metadata: {err}"))?;
+    let len = usize::try_from(metadata.len()).map_err(|_| "image file is too large".to_string())?;
+    if len > MAX_SLOT_IMAGE_BYTES {
+        return Err(format!(
+            "image file is too large (max {} MB)",
+            MAX_SLOT_IMAGE_BYTES / (1024 * 1024)
+        ));
+    }
+
+    let bytes = std::fs::read(path).map_err(|err| format!("failed to read image file: {err}"))?;
+    Ok(SlotImageLoadResult {
+        mime_type: mime_type.to_string(),
+        bytes,
+    })
 }
 
 #[tauri::command(rename_all = "camelCase")]

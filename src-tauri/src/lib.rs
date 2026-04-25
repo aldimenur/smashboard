@@ -291,6 +291,7 @@ pub fn run() {
             commands::slot_commands::update_slot,
             commands::slot_commands::delete_slot,
             commands::slot_commands::get_all_slots,
+            commands::slot_commands::load_slot_image_data,
             commands::slot_commands::trigger_slot,
             commands::slot_commands::stop_all_audio,
             commands::recording_commands::start_recording,

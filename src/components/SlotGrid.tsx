@@ -3,20 +3,38 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFloppyDisk, faGear, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faFloppyDisk, faGear, faImage, faUpload, faXmark } from "@fortawesome/free-solid-svg-icons";
 
 import { useSlots } from "../hooks/useSlots";
 import type { Slot } from "../types";
 import { normalizeShortcutString, shortcutFromKeyboardEvent } from "../utils/shortcut";
+import { SLOT_ICON_OPTIONS } from "../utils/slotIcons";
 import { RecordingTransport } from "./RecordingTransport";
 import { ShortcutInput } from "./ShortcutInput";
 import { SlotCard } from "./SlotCard";
 import { useMemo, useState } from "react";
 
+interface SlotImageLoadResult {
+  mimeType: string;
+  bytes: number[];
+}
+
+function encodeImageDataUrl(bytes: number[], mimeType: string): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.slice(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return `data:${mimeType};base64,${btoa(binary)}`;
+}
+
 export function SlotGrid() {
   const { slots, error, loadSlots, addSlotAtPosition, triggerSlot, updateSlot, deleteSlot } = useSlots();
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
+  const [imageDataDraft, setImageDataDraft] = useState<string | null>(null);
+  const [iconNameDraft, setIconNameDraft] = useState<string | null>(null);
   const [pulseTicks, setPulseTicks] = useState<Record<string, number>>({});
   const [boardRows, setBoardRows] = useState(5);
   const [boardColumns, setBoardColumns] = useState(5);
@@ -107,6 +125,8 @@ export function SlotGrid() {
   useEffect(() => {
     if (editingSlot) {
       setLabelDraft(editingSlot.label);
+      setImageDataDraft(editingSlot.imageDataUrl ?? null);
+      setIconNameDraft(editingSlot.iconName ?? null);
     }
   }, [editingSlot]);
 
@@ -160,6 +180,8 @@ export function SlotGrid() {
   const handleEdit = async (slot: Slot) => {
     setEditingSlotId(slot.id);
     setLabelDraft(slot.label);
+    setImageDataDraft(slot.imageDataUrl ?? null);
+    setIconNameDraft(slot.iconName ?? null);
   };
 
   const handleDelete = async (slotId: string) => {
@@ -184,6 +206,36 @@ export function SlotGrid() {
   }, [slots]);
 
   const paddedSlots = Array.from({ length: gridCapacity }, (_, index) => slotsByPosition.get(index));
+  const selectedIcon = useMemo(
+    () => SLOT_ICON_OPTIONS.find((option) => option.name === iconNameDraft)?.icon ?? null,
+    [iconNameDraft],
+  );
+
+  const pickSlotImage = async () => {
+    const selected = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "svg"] }],
+    });
+
+    if (typeof selected !== "string") {
+      return;
+    }
+
+    const payload = await invoke<SlotImageLoadResult>("load_slot_image_data", { filePath: selected });
+    const imageDataUrl = encodeImageDataUrl(payload.bytes, payload.mimeType);
+    setImageDataDraft(imageDataUrl);
+    setIconNameDraft(null);
+    setLayoutError(null);
+  };
+
+  const uploadCustomImage = async () => {
+    try {
+      await pickSlotImage();
+    } catch (err) {
+      setLayoutError(String(err));
+    }
+  };
 
   return (
     <section className="slot-grid-wrapper">
@@ -270,7 +322,7 @@ export function SlotGrid() {
         >
           <div className="dialog-card slot-editor-modal" onMouseDown={(event) => event.stopPropagation()}>
             <h2>Edit Slot</h2>
-            <p className="slot-editor-hint">Update label and shortcut.</p>
+            <p className="slot-editor-hint">Update label, shortcut, and optional slot image.</p>
             <label>
               Label
               <input value={labelDraft} onChange={(event) => setLabelDraft(event.currentTarget.value)} maxLength={64} />
@@ -287,12 +339,71 @@ export function SlotGrid() {
               />
             </label>
 
+            <div className="slot-image-editor">
+              <span className="slot-image-editor-label">Artwork</span>
+              <div className="slot-image-editor-preview">
+                {imageDataDraft ? (
+                  <img src={imageDataDraft} alt="" />
+                ) : selectedIcon ? (
+                  <FontAwesomeIcon icon={selectedIcon} />
+                ) : (
+                  <FontAwesomeIcon icon={faImage} />
+                )}
+              </div>
+              <label>
+                Icon Library (Font Awesome)
+                <select
+                  value={iconNameDraft ?? ""}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value.trim();
+                    setIconNameDraft(value || null);
+                    if (value) {
+                      setImageDataDraft(null);
+                    }
+                  }}
+                >
+                  <option value="">None</option>
+                  {SLOT_ICON_OPTIONS.map((option) => (
+                    <option key={option.name} value={option.name}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="slot-image-editor-actions">
+                <button type="button" onClick={() => void uploadCustomImage()}>
+                  <FontAwesomeIcon icon={faUpload} />
+                  Upload Image
+                </button>
+                <button
+                  type="button"
+                  className="button-danger-soft"
+                  onClick={() => {
+                    setImageDataDraft(null);
+                    setIconNameDraft(null);
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+
             <div className="slot-editor-actions">
               <button
                 type="button"
                 onClick={async () => {
                   try {
-                    await updateSlot(editingSlot.id, { label: labelDraft.trim() || editingSlot.label });
+                    const payload: { label: string; imageDataUrl?: string; iconName?: string } = {
+                      label: labelDraft.trim() || editingSlot.label,
+                    };
+                    if (imageDataDraft !== (editingSlot.imageDataUrl ?? null)) {
+                      payload.imageDataUrl = imageDataDraft ?? "";
+                    }
+                    if (iconNameDraft !== (editingSlot.iconName ?? null)) {
+                      payload.iconName = iconNameDraft ?? "";
+                    }
+
+                    await updateSlot(editingSlot.id, payload);
                     setEditingSlotId(null);
                   } catch {
                     // Error already surfaced by hook state.
